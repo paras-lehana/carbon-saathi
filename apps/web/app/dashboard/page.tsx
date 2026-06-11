@@ -118,6 +118,7 @@ export default function DashboardPage(): React.JSX.Element {
         <GridSkeleton />
       ) : (
         <DashboardGrid
+          userId={userId}
           dashboard={data.dashboard}
           baseline={baseline ?? null}
           actions={data.actions}

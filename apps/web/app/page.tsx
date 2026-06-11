@@ -9,6 +9,7 @@ import { motion, useReducedMotion, type MotionProps } from 'framer-motion';
 import { Button } from '../components/ui/Button';
 import { GlassCard } from '../components/ui/GlassCard';
 import { StatCard } from '../components/ui/StatCard';
+import { QuizWidget } from '../components/gamification/QuizWidget';
 
 const PROBLEM_STATS = [
   {
@@ -152,6 +153,15 @@ export default function LandingPage(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-20">
+      {/* ── Instant quiz hook (above the fold) ── */}
+      <motion.section {...fadeUp} aria-labelledby="quiz-heading" className="rounded-2xl bg-primary-soft p-6 sm:p-8">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">30-second quiz</p>
+        <h2 id="quiz-heading" className="mb-4 font-display text-xl font-bold">
+          What&apos;s your carbon footprint? Find out now.
+        </h2>
+        <QuizWidget />
+      </motion.section>
+
       {/* ── Hero ── */}
       <section aria-labelledby="hero-heading" className="grid items-center gap-10 pt-6 md:grid-cols-2">
         <div>

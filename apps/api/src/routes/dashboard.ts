@@ -70,6 +70,8 @@ export function createDashboardRouter(store: UserStore, now: () => number): Rout
           points: user.gamification.points,
           totalCo2SavedKg: user.gamification.totalCo2SavedKg,
           streak: user.gamification.streak,
+          earnedBadges: user.gamification.earnedBadges,
+          pledge: user.gamification.pledge,
           level: levelForPoints(user.gamification.points),
         },
         missions: missions.value,

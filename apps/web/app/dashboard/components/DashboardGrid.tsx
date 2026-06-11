@@ -10,6 +10,8 @@ import { useState } from 'react';
 import { motion, useReducedMotion, type MotionProps } from 'framer-motion';
 import type { ActionDefinition, BaselineFootprintResult } from '@carbon-saathi/core';
 import { CategoryDonut } from '../../../components/charts/CategoryDonut';
+import { BadgeWall } from '../../../components/gamification/BadgeWall';
+import { DailyPledgeCard } from '../../../components/gamification/DailyPledgeCard';
 import { LevelBadge } from '../../../components/gamification/LevelBadge';
 import { MissionCard } from '../../../components/gamification/MissionCard';
 import { StreakFlame } from '../../../components/gamification/StreakFlame';
@@ -31,6 +33,7 @@ const MINI_BOARD_SIZE = 3;
 const DAY_FORMATTER = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' });
 
 export interface DashboardGridProps {
+  userId: string;
   dashboard: DashboardResponse;
   baseline: BaselineFootprintResult | null;
   actions: ActionDefinition[];
@@ -39,6 +42,7 @@ export interface DashboardGridProps {
 }
 
 export function DashboardGrid({
+  userId,
   dashboard,
   baseline,
   actions,
@@ -151,6 +155,17 @@ export function DashboardGrid({
           Log any action today to keep it alive — every 7-day run earns a shield.
         </p>
       </GlassCard>
+
+      {/* ── Badges ── */}
+      <GlassCard as="section" className="bento-wide" aria-label="Earned badges">
+        <BadgeWall earnedIds={gamification.earnedBadges ?? []} />
+      </GlassCard>
+
+      {/* ── Daily pledge ── */}
+      <DailyPledgeCard
+        userId={userId}
+        currentPledge={gamification.pledge ?? null}
+      />
 
       {/* ── Weekly missions ── */}
       <GlassCard as="section" className="bento-tall" aria-labelledby="dash-missions-heading">
