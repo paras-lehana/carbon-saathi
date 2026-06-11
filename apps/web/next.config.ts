@@ -7,6 +7,8 @@ import path from 'node:path';
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Required for Cloud Run: emits a self-contained node server in .next/standalone.
+  output: 'standalone',
   // Pin file tracing to the monorepo root so stray lockfiles outside the
   // repository can never change what gets bundled.
   outputFileTracingRoot: path.join(__dirname, '..', '..'),

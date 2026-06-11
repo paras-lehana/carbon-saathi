@@ -12,6 +12,9 @@ and payback years for *your* electricity bill.
 
 Built with **Google Antigravity + Gemini**.
 
+> **Live demo**: [https://carbon-saathi-web-ktdjm6xcyq-el.a.run.app](https://carbon-saathi-web-ktdjm6xcyq-el.a.run.app) (Cloud Run, asia-south1)
+> **API**: [https://carbon-saathi-api-ktdjm6xcyq-el.a.run.app/api/health](https://carbon-saathi-api-ktdjm6xcyq-el.a.run.app/api/health) — live Gemini 2.5-flash, `demoMode: false`
+
 ---
 
 ## ✨ Highlights
