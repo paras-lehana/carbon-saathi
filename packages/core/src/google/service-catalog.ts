@@ -28,7 +28,8 @@ export const GOOGLE_SERVICES: readonly GoogleServiceIntegration[] = [
     product: 'Gemini API (Google AI Studio)',
     category: 'ai',
     status: 'implemented',
-    userValue: 'Saathi Chat: a grounded climate coach that explains the user’s own calculator numbers.',
+    userValue:
+      'Saathi Chat: a grounded climate coach that explains the user’s own calculator numbers.',
     codePaths: [
       'apps/api/src/services/gemini-client.ts',
       'apps/api/src/services/assistant.ts',
@@ -59,8 +60,8 @@ export const GOOGLE_SERVICES: readonly GoogleServiceIntegration[] = [
     product: 'Maps JavaScript API',
     category: 'maps',
     status: 'ready-with-key',
-    userValue: 'Interactive route map on the commute comparison page.',
-    codePaths: ['apps/web/app/commute/'],
+    userValue: 'Interactive route map for the EV-coach commute comparison.',
+    codePaths: ['apps/web/app/ev-coach/components/CommuteCompare.tsx'],
     envVars: ['NEXT_PUBLIC_GOOGLE_MAPS_API_KEY'],
     fallbackMode: 'Static mode comparison renders without the interactive map.',
     evidenceSignals: ['Browser key referrer restriction documented in .env.example'],
@@ -74,7 +75,10 @@ export const GOOGLE_SERVICES: readonly GoogleServiceIntegration[] = [
     codePaths: ['apps/api/src/services/store.ts'],
     envVars: ['NEXT_PUBLIC_FIREBASE_API_KEY', 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'],
     fallbackMode: 'Anonymous local profiles — no PII is required or collected.',
-    evidenceSignals: ['Privacy pledge on /about', 'UserStore interface ready for an auth-aware impl'],
+    evidenceSignals: [
+      'Privacy pledge on /about',
+      'UserStore interface ready for an auth-aware impl',
+    ],
   },
   {
     id: 'firestore',
@@ -84,7 +88,8 @@ export const GOOGLE_SERVICES: readonly GoogleServiceIntegration[] = [
     userValue: 'Durable persistence for profiles, action logs and streaks.',
     codePaths: ['apps/api/src/services/store.ts'],
     envVars: ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'],
-    fallbackMode: 'InMemoryUserStore behind the same UserStore interface (sessions reset on restart).',
+    fallbackMode:
+      'InMemoryUserStore behind the same UserStore interface (sessions reset on restart).',
     evidenceSignals: ['UserStore interface with a documented Firestore roadmap'],
   },
   {
@@ -103,11 +108,50 @@ export const GOOGLE_SERVICES: readonly GoogleServiceIntegration[] = [
     product: 'Cloud Run',
     category: 'cloud',
     status: 'implemented',
-    userValue: 'API is container-ready: binds PORT, stateless, config via env — deploys to Cloud Run unchanged.',
-    codePaths: ['apps/api/src/index.ts', 'apps/api/src/config.ts'],
+    userValue:
+      'Both services are LIVE on Cloud Run in asia-south1 (Mumbai — lowest latency for Indian users): stateless containers, scale-to-zero, SIGTERM-graceful shutdown.',
+    codePaths: [
+      'apps/api/Dockerfile',
+      'apps/web/Dockerfile',
+      'cloudbuild-api.yaml',
+      'cloudbuild-web.yaml',
+      'apps/api/src/index.ts',
+    ],
     envVars: ['PORT'],
     fallbackMode: 'Runs as a plain Node process on any host.',
-    evidenceSignals: ['PORT env contract (default 8080)', 'No local-disk state in the API'],
+    evidenceSignals: [
+      'Live /api/health reports demoMode: false on the deployed service',
+      'asia-south1 region pinned in both cloudbuild configs',
+      'PORT env contract (default 8080), no local-disk state',
+    ],
+  },
+  {
+    id: 'cloud-build',
+    product: 'Cloud Build',
+    category: 'cloud',
+    status: 'implemented',
+    userValue: 'Every deploy is a server-side build+push+deploy pipeline — no local Docker needed.',
+    codePaths: ['cloudbuild-api.yaml', 'cloudbuild-web.yaml', 'scripts/deploy.ps1'],
+    envVars: [],
+    fallbackMode: 'Local docker build with the same Dockerfiles.',
+    evidenceSignals: [
+      'Three-step pipelines: docker build → push → gcloud run deploy',
+      'logging: CLOUD_LOGGING_ONLY routes build logs into Cloud Logging',
+    ],
+  },
+  {
+    id: 'artifact-registry',
+    product: 'Artifact Registry',
+    category: 'cloud',
+    status: 'implemented',
+    userValue: 'Versioned container images per build, co-located with the runtime region.',
+    codePaths: ['cloudbuild-api.yaml', 'cloudbuild-web.yaml', 'scripts/deploy.ps1'],
+    envVars: [],
+    fallbackMode: 'Any OCI registry — image names are substitution-driven.',
+    evidenceSignals: [
+      'Images tagged asia-south1-docker.pkg.dev/<project>/carbon-saathi/{api,web}:$BUILD_ID',
+      'deploy.ps1 creates the docker repo idempotently',
+    ],
   },
   {
     id: 'google-analytics-4',
@@ -125,22 +169,30 @@ export const GOOGLE_SERVICES: readonly GoogleServiceIntegration[] = [
     product: 'Cloud Logging',
     category: 'cloud',
     status: 'implemented',
-    userValue: 'Structured JSON logs ingest natively into Cloud Logging when deployed on Cloud Run.',
-    codePaths: ['apps/api/src/middleware/logger.ts'],
+    userValue:
+      'The live API streams structured JSON logs into Cloud Logging; build logs land there too via the Cloud Build pipelines.',
+    codePaths: ['apps/api/src/middleware/logger.ts', 'cloudbuild-api.yaml'],
     envVars: [],
     fallbackMode: 'Plain stdout JSON lines in local development.',
-    evidenceSignals: ['Structured route/status/latency logs that never contain raw user text'],
+    evidenceSignals: [
+      'Structured route/status/latency logs that never contain raw user text',
+      'severity-tagged startup line ingests as a typed entry',
+    ],
   },
   {
     id: 'secret-manager',
     product: 'Secret Manager',
     category: 'cloud',
-    status: 'planned',
-    userValue: 'Production-grade storage for the Gemini and Maps API keys.',
-    codePaths: ['apps/api/src/config.ts'],
-    envVars: [],
-    fallbackMode: 'Keys via .env files, which are git-ignored.',
-    evidenceSignals: ['Central config loader makes the swap a one-file change'],
+    status: 'implemented',
+    userValue:
+      'The Gemini key lives in Secret Manager and mounts onto the Cloud Run service by reference — never in images, the repo, or plain env-var config.',
+    codePaths: ['scripts/deploy.ps1', 'apps/api/src/config.ts'],
+    envVars: ['GEMINI_API_KEY'],
+    fallbackMode: 'Keys via git-ignored .env files in local development.',
+    evidenceSignals: [
+      'deploy.ps1 stores the key with secret versions and least-privilege accessor IAM',
+      '--update-secrets mounts gemini-api-key:latest as GEMINI_API_KEY',
+    ],
   },
 ];
 

@@ -1,8 +1,27 @@
 /**
- * 30-second footprint quiz. Questions map to survey inputs with middle-of-road
- * defaults for fields not directly answerable. Pure function, deterministic.
+ * 30-second footprint quiz: question catalog plus the deterministic mapping
+ * from quiz answers to a full baseline survey. Owns the middle-of-road
+ * defaults for fields the quiz does not ask about; the API edge owns answer
+ * validation (quizAnswersSchema), so the maps here assume well-typed input —
+ * the literal-union answer types make an unknown id a compile error.
  */
-import type { BaselineSurveyInput, CommuteMode, DietPattern, QuizAnswers, QuizQuestion } from './types';
+import { calculateBaselineFootprint } from './baseline';
+import type { AppError } from './errors';
+import type { Result } from './result';
+import { mapResult } from './result';
+import type {
+  BaselineFootprintResult,
+  BaselineSurveyInput,
+  CommuteMode,
+  DietPattern,
+  QuizAcAnswer,
+  QuizAnswers,
+  QuizCommuteAnswer,
+  QuizDietAnswer,
+  QuizFlightsAnswer,
+  QuizQuestion,
+  QuizShoppingAnswer,
+} from './types';
 
 export const QUIZ_QUESTIONS: readonly QuizQuestion[] = [
   {
@@ -56,67 +75,79 @@ export const QUIZ_QUESTIONS: readonly QuizQuestion[] = [
   },
 ];
 
-// Deterministic mapping: quiz answers → survey input. The unmapped fields
-// default to a middle-of-road Delhi household of four.
+// Answer → survey lookup tables. Exhaustive over the literal unions, so a new
+// quiz option fails to compile until every table is extended.
+const COMMUTE_ANSWER_TO_MODE: Record<QuizCommuteAnswer, CommuteMode> = {
+  car: 'car-petrol', // petrol dominates the Indian private-car fleet
+  'two-wheeler': 'two-wheeler',
+  'metro-bus': 'metro',
+  'cycle-walk': 'cycle-walk',
+  wfh: 'wfh',
+};
+
+const DIET_ANSWER_TO_PATTERN: Record<QuizDietAnswer, DietPattern> = {
+  'nonveg-daily': 'nonveg-daily',
+  'nonveg-weekly': 'nonveg-weekly',
+  eggs: 'eggs',
+  veg: 'vegetarian',
+};
+
+const AC_ANSWER_TO_HOURS: Record<QuizAcAnswer, number> = {
+  'all-night': 10, // a full sleeping night of compressor time
+  'few-hours': 4,
+  rarely: 1,
+  'no-ac': 0,
+};
+
+const SHOPPING_ANSWER_TO_LEVEL: Record<QuizShoppingAnswer, BaselineSurveyInput['shoppingLevel']> = {
+  minimal: 'low',
+  monthly: 'medium',
+  'love-shopping': 'high',
+};
+
+// Short-haul dominates Indian leisure travel; long-haul appears only for
+// frequent flyers (3+ flights implies at least one international segment).
+const FLIGHTS_ANSWER_TO_COUNTS: Record<QuizFlightsAnswer, { short: number; long: number }> = {
+  none: { short: 0, long: 0 },
+  'one-two': { short: 1, long: 0 },
+  'three-plus': { short: 1, long: 1 },
+};
+
+/**
+ * Deterministic mapping: quiz answers → full survey input. Fields the quiz
+ * does not ask about default to a middle-of-road urban Delhi household of
+ * four (250 kWh/month ≈ the metro-city average; 10 km one-way commute ≈ the
+ * Delhi Metro average trip length).
+ */
 export function quizToSurvey(answers: QuizAnswers): BaselineSurveyInput {
-  const commuteMap: Record<string, CommuteMode> = {
-    car: 'car-petrol',
-    'two-wheeler': 'two-wheeler',
-    'metro-bus': 'metro',
-    'cycle-walk': 'cycle-walk',
-    wfh: 'wfh',
-  };
-
-  const dietMap: Record<string, DietPattern> = {
-    'nonveg-daily': 'nonveg-daily',
-    'nonveg-weekly': 'nonveg-weekly',
-    eggs: 'eggs',
-    veg: 'vegetarian',
-  };
-
-  const acHoursMap: Record<string, number> = {
-    'all-night': 10,
-    'few-hours': 4,
-    rarely: 1,
-    'no-ac': 0,
-  };
-
-  const shoppingMap: Record<string, 'low' | 'medium' | 'high'> = {
-    minimal: 'low',
-    monthly: 'medium',
-    'love-shopping': 'high',
-  };
-
-  // Short-haul: 0 (mostly local); long-haul: one every 1-2 years on average.
-  const flightsMap: Record<string, { short: number; long: number }> = {
-    none: { short: 0, long: 0 },
-    'one-two': { short: 1, long: 0 },
-    'three-plus': { short: 1, long: 1 },
-  };
-
-  const flights = flightsMap[answers.flights] || { short: 0, long: 0 };
-
+  const flights = FLIGHTS_ANSWER_TO_COUNTS[answers.flights];
   return {
     householdSize: 4,
-    monthlyElectricityKwh: 250, // ~3,000 kWh/yr, typical urban household
+    monthlyElectricityKwh: 250,
     lpgCylindersPerMonth: 1,
-    commuteMode: commuteMap[answers.commute] || 'metro',
-    commuteKmOneWay: 10, // ~20 km round-trip, Delhi metro-commute distance
+    commuteMode: COMMUTE_ANSWER_TO_MODE[answers.commute],
+    commuteKmOneWay: 10,
     commuteDaysPerWeek: answers.commute === 'wfh' ? 0 : 5,
     carpoolSize: answers.commute === 'car' ? 1 : undefined,
     flightsShortPerYear: flights.short,
     flightsLongPerYear: flights.long,
-    dietPattern: dietMap[answers.diet] || 'vegetarian',
-    shoppingLevel: shoppingMap[answers.shopping] || 'medium',
-    acHoursPerDay: acHoursMap[answers.ac] || 4,
+    dietPattern: DIET_ANSWER_TO_PATTERN[answers.diet],
+    shoppingLevel: SHOPPING_ANSWER_TO_LEVEL[answers.shopping],
+    acHoursPerDay: AC_ANSWER_TO_HOURS[answers.ac],
     state: 'Delhi',
   };
 }
 
-export function estimateFromQuiz(answers: QuizAnswers) {
-  // Import at call time to avoid circular deps during module load.
-  const { calculateBaselineFootprint } = require('./baseline');
+/**
+ * One-call quiz scoring: maps answers to a survey and runs the baseline
+ * calculator on it. Returns the calculator's Result unchanged (an err here
+ * means the quiz defaults breached a calculator bound — a programming error,
+ * not a user one), pairing the footprint with the survey it came from so the
+ * caller can persist both.
+ */
+export function estimateFromQuiz(
+  answers: QuizAnswers,
+): Result<{ baseline: BaselineFootprintResult; survey: BaselineSurveyInput }, AppError> {
   const survey = quizToSurvey(answers);
-  const baseline = calculateBaselineFootprint(survey);
-  return { baseline, survey };
+  return mapResult(calculateBaselineFootprint(survey), (baseline) => ({ baseline, survey }));
 }

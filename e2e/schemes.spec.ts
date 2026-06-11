@@ -30,7 +30,9 @@ test('kusum: diesel pump farmer → Component B with subsidy split', async ({ pa
     await kusumTab.click();
   } else {
     // Tabs may be rendered as plain toggle buttons — same activation intent.
-    const fallback = await firstVisible(page.locator('main').getByRole('button', { name: /kusum/i }));
+    const fallback = await firstVisible(
+      page.locator('main').getByRole('button', { name: /kusum/i }),
+    );
     if (fallback) await fallback.click();
   }
 
@@ -43,7 +45,9 @@ test('kusum: diesel pump farmer → Component B with subsidy split', async ({ pa
   await completeRadioGroups(page);
 
   const submit = await firstVisible(
-    page.locator('main').getByRole('button', { name: /advise|recommend|check|calculate|find|get/i }),
+    page
+      .locator('main')
+      .getByRole('button', { name: /advise|recommend|check|calculate|find|get/i }),
   );
   if (!submit) throw new Error('KUSUM submit button not found');
   await submit.click();

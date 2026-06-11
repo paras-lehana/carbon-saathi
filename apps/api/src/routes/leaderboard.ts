@@ -33,6 +33,9 @@ export function createLeaderboardRouter(store: UserStore): Router {
     '/',
     asyncHandler(async (req, res) => {
       const requesterId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+      // Efficiency: a full list + sort is O(n log n) per request, acceptable
+      // for the in-memory store's ≤10k bound. This is the first endpoint to
+      // revisit (top-K selection or cached aggregate) when Firestore lands.
       const liveUsers = await store.listUsers();
       const seedIds = new Set(LEADERBOARD_SEED.map((entry) => entry.userId));
       const rows: LeaderboardRow[] = [
@@ -56,7 +59,8 @@ export function createLeaderboardRouter(store: UserStore): Router {
         level: levelForPoints(row.points).name,
         isYou: row.userId === requesterId ? true : undefined,
       }));
-      const yourEntry = requesterId === undefined ? undefined : ranked.find((entry) => entry.isYou === true);
+      const yourEntry =
+        requesterId === undefined ? undefined : ranked.find((entry) => entry.isYou === true);
       // Top slice plus the requester's own row, so "you" stays visible even
       // when ranked below the cut.
       const entries = ranked.slice(0, MAX_ENTRIES);

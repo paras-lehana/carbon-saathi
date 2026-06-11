@@ -36,4 +36,19 @@ describe('public barrel', () => {
     expect(core.ok(1).ok).toBe(true);
     expect(core.err('e').ok).toBe(false);
   });
+
+  it('exports the quiz, badge, pledge and initiative surfaces', () => {
+    expect(core.QUIZ_QUESTIONS.length).toBe(5);
+    expect(typeof core.quizToSurvey).toBe('function');
+    expect(typeof core.estimateFromQuiz).toBe('function');
+    expect(core.BADGE_CATALOG.length).toBe(8);
+    expect(typeof core.evaluateBadges).toBe('function');
+    expect(typeof core.applyPledgeBonus).toBe('function');
+    expect(core.INITIATIVE_CATALOG.length).toBeGreaterThanOrEqual(20);
+    expect(typeof core.initiativesByCategory).toBe('function');
+    expect(core.ALL_INITIATIVE_CATEGORIES.length).toBe(7);
+    expect(Object.keys(core.LIFE_THEMES).length).toBe(7);
+    expect(core.quizAnswersSchema.safeParse).toBeDefined();
+    expect(core.pledgeRequestSchema.safeParse).toBeDefined();
+  });
 });

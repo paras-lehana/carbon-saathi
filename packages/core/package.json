@@ -1,6 +1,6 @@
 {
   "name": "@carbon-saathi/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Pure TypeScript domain engine for Carbon Saathi: emission factors, calculators, schemes, gamification.",
   "main": "./dist/index.js",

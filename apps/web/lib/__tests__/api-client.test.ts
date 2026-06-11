@@ -3,7 +3,7 @@
  * envelopes and malformed bodies must all normalise to { ok:false, error }.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { calculateSuryaGhar, getHealth, logAction } from '../api-client';
+import { calculateSuryaGhar, getHealth, logAction, quizEstimate, setPledge } from '../api-client';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -79,5 +79,47 @@ describe('api-client', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/actions/log');
     expect(new Headers(init.headers).get('content-type')).toBe('application/json');
+  });
+
+  it('quizEstimate posts the answers and unwraps the typed payload', async () => {
+    const answers = {
+      commute: 'metro-bus',
+      ac: 'rarely',
+      diet: 'veg',
+      flights: 'none',
+      shopping: 'minimal',
+    } as const;
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ baseline: { totalKgAnnual: 1500 }, survey: { householdSize: 4 } }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await quizEstimate(answers);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.baseline.totalKgAnnual).toBe(1500);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/quiz/estimate');
+    expect(JSON.parse(String(init.body))).toEqual({ answers });
+  });
+
+  it('setPledge posts userId + actionId and surfaces validation errors', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: { code: 'VALIDATION_FAILED', message: 'Unknown actionId.' } }), {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    );
+
+    const result = await setPledge({ userId: 'u1', actionId: 'bogus' });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('VALIDATION_FAILED');
   });
 });

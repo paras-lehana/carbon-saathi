@@ -33,7 +33,12 @@ describe('calculateEvFit — decision branches', () => {
 
   it('current two-wheeler rider → ev-two-wheeler even at 50 km/day', () => {
     const r = unwrap(
-      calculateEvFit({ ...base, currentVehicle: 'two-wheeler', dailyKm: 50, hasHomeCharging: true }),
+      calculateEvFit({
+        ...base,
+        currentVehicle: 'two-wheeler',
+        dailyKm: 50,
+        hasHomeCharging: true,
+      }),
     );
     expect(r.recommendation).toBe('ev-two-wheeler');
     expect(r.annualCo2SavedKg).toBe(396); // (0.045 − 0.021) × 50 × 330

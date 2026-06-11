@@ -1,14 +1,24 @@
 /**
- * Badge catalog and evaluation. Badges are awarded for milestones during the
- * app lifecycle — new badges only (never repeats of earned badges).
+ * Badge catalog and pure evaluation rules. This module owns which badges
+ * exist and when one qualifies; the API owns when evaluation runs (bootstrap
+ * and action-log time) and persisting the earned ids on GamificationState.
+ * Evaluation returns only newly earned badges — never repeats.
  */
-import type { BadgeDefinition } from './types';
+import type { BadgeDefinition, BadgeEvaluationInput } from './types';
+
+// Streak badge days deliberately bracket the shield economy in gamification.ts:
+// 3 is the first habit signal, 7 matches SHIELD_EARN_INTERVAL_DAYS so the badge
+// and the first shield land together — change one and reconsider the other.
+const STREAK_BADGE_FIRST_DAYS = 3;
+const STREAK_BADGE_WEEK_DAYS = 7;
+// 10 kg ≈ a week of consistent logging at the catalog's typical 1-2 kg/action.
+const SAVER_BADGE_KG = 10;
 
 export const BADGE_CATALOG: readonly BadgeDefinition[] = [
   {
     id: 'quiz-whiz',
-    name: 'Pehla Quiz',
-    description: '30-Second Starter',
+    name: 'Quiz Whiz',
+    description: '30-second quiz completed',
     icon: '🧠',
     hint: 'Complete the quick quiz',
   },
@@ -59,70 +69,48 @@ export const BADGE_CATALOG: readonly BadgeDefinition[] = [
     name: 'Pledge Keeper',
     description: 'Daily commitment',
     icon: '🤝',
-    hint: 'Complete today\'s pledged action',
+    hint: "Complete today's pledged action",
   },
 ];
 
-export interface BadgeEvaluationInput {
-  earned: string[];
-  hasBaseline: boolean;
-  joinedViaQuiz: boolean;
-  actionCount: number;
-  streakCurrent: number;
-  totalCo2SavedKg: number;
-  missionCompleted: boolean;
-  pledgeCompleted: boolean;
-}
+const BADGE_BY_ID: ReadonlyMap<string, BadgeDefinition> = new Map(
+  BADGE_CATALOG.map((badge) => [badge.id, badge]),
+);
 
+// One row per badge: the rule is data, so adding a badge is a catalog entry
+// plus one predicate — no branching logic to copy.
+const BADGE_RULES: ReadonlyArray<{
+  readonly id: string;
+  readonly qualifies: (input: BadgeEvaluationInput) => boolean;
+}> = [
+  { id: 'quiz-whiz', qualifies: (input) => input.joinedViaQuiz },
+  { id: 'pehla-kadam', qualifies: (input) => input.hasBaseline },
+  { id: 'pehli-jeet', qualifies: (input) => input.actionCount >= 1 },
+  { id: 'streak-3', qualifies: (input) => input.streakCurrent >= STREAK_BADGE_FIRST_DAYS },
+  { id: 'streak-7', qualifies: (input) => input.streakCurrent >= STREAK_BADGE_WEEK_DAYS },
+  { id: 'saver-10', qualifies: (input) => input.totalCo2SavedKg >= SAVER_BADGE_KG },
+  { id: 'mission-master', qualifies: (input) => input.missionCompleted },
+  { id: 'pledge-keeper', qualifies: (input) => input.pledgeCompleted },
+];
+
+/**
+ * Pure badge evaluation: returns the definitions of badges newly earned by
+ * this input, excluding anything already in earnedBadges. Idempotent — a
+ * second call with the returned ids appended yields []. Multiple badges can
+ * land in one call (e.g. a 7-day streak with none earned returns both streak
+ * badges).
+ */
 export function evaluateBadges(input: BadgeEvaluationInput): BadgeDefinition[] {
-  const earned = new Set(input.earned);
+  const earned = new Set(input.earnedBadges);
   const newBadges: BadgeDefinition[] = [];
-
-  // Quiz-whiz: triggered at bootstrap with source: 'quiz' (no way to re-earn).
-  if (input.joinedViaQuiz && !earned.has('quiz-whiz')) {
-    newBadges.push(BADGE_CATALOG.find((b) => b.id === 'quiz-whiz')!);
-    earned.add('quiz-whiz');
+  for (const rule of BADGE_RULES) {
+    if (earned.has(rule.id) || !rule.qualifies(input)) continue;
+    const badge = BADGE_BY_ID.get(rule.id);
+    // A rule without a catalog entry is a programming error; skipping keeps
+    // evaluation total instead of throwing across the package boundary.
+    if (badge === undefined) continue;
+    newBadges.push(badge);
+    earned.add(rule.id);
   }
-
-  // Pehla-kadam: baseline saved.
-  if (input.hasBaseline && !earned.has('pehla-kadam')) {
-    newBadges.push(BADGE_CATALOG.find((b) => b.id === 'pehla-kadam')!);
-    earned.add('pehla-kadam');
-  }
-
-  // Pehli-jeet: first action logged.
-  if (input.actionCount >= 1 && !earned.has('pehli-jeet')) {
-    newBadges.push(BADGE_CATALOG.find((b) => b.id === 'pehli-jeet')!);
-    earned.add('pehli-jeet');
-  }
-
-  // Streaks.
-  if (input.streakCurrent >= 3 && !earned.has('streak-3')) {
-    newBadges.push(BADGE_CATALOG.find((b) => b.id === 'streak-3')!);
-    earned.add('streak-3');
-  }
-  if (input.streakCurrent >= 7 && !earned.has('streak-7')) {
-    newBadges.push(BADGE_CATALOG.find((b) => b.id === 'streak-7')!);
-    earned.add('streak-7');
-  }
-
-  // Saver.
-  if (input.totalCo2SavedKg >= 10 && !earned.has('saver-10')) {
-    newBadges.push(BADGE_CATALOG.find((b) => b.id === 'saver-10')!);
-    earned.add('saver-10');
-  }
-
-  // Missions.
-  if (input.missionCompleted && !earned.has('mission-master')) {
-    newBadges.push(BADGE_CATALOG.find((b) => b.id === 'mission-master')!);
-    earned.add('mission-master');
-  }
-
-  // Pledge.
-  if (input.pledgeCompleted && !earned.has('pledge-keeper')) {
-    newBadges.push(BADGE_CATALOG.find((b) => b.id === 'pledge-keeper')!);
-    earned.add('pledge-keeper');
-  }
-
   return newBadges;
 }

@@ -14,7 +14,7 @@ Write-Host "==> Target project: $ProjectId ($Region)"
 gcloud config set project $ProjectId | Out-Null
 
 Write-Host '==> Enabling required services (idempotent)'
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
 
 Write-Host '==> Ensuring Artifact Registry repo exists'
 $repoExists = gcloud artifacts repositories list --location=$Region --format='value(name)' 2>$null | Select-String 'carbon-saathi'
@@ -25,16 +25,33 @@ if (-not $repoExists) {
 Write-Host '==> Building + deploying API'
 gcloud builds submit --config cloudbuild-api.yaml --substitutions=_REGION=$Region
 
-# Security: the Gemini key travels straight from the local gitignored .env to
-# the Cloud Run service environment — it never enters an image or the repo.
+# Security: the Gemini key goes from the local gitignored .env into Secret
+# Manager, and the service mounts it by reference — the key never enters an
+# image, the repo, or the (viewer-visible) Cloud Run env-var config.
 $envFile = Join-Path $repoRoot 'apps\api\.env'
 if (Test-Path $envFile) {
   $geminiKey = (Select-String -Path $envFile -Pattern '^GEMINI_API_KEY=(.+)$').Matches | ForEach-Object { $_.Groups[1].Value.Trim() } | Select-Object -First 1
   $geminiModel = (Select-String -Path $envFile -Pattern '^GEMINI_MODEL=(.+)$').Matches | ForEach-Object { $_.Groups[1].Value.Trim() } | Select-Object -First 1
   if ($geminiKey) {
-    Write-Host '==> Attaching Gemini key to the API service (live mode)'
+    Write-Host '==> Storing Gemini key in Secret Manager (live mode)'
+    $secretExists = gcloud secrets describe gemini-api-key --format='value(name)' 2>$null
+    if ($secretExists) {
+      # New version on every deploy keeps rotation a one-command affair.
+      $geminiKey | gcloud secrets versions add gemini-api-key --data-file=-
+    } else {
+      $geminiKey | gcloud secrets create gemini-api-key --data-file=-
+    }
+    # Least privilege: only the service's runtime account may read the secret.
+    $projectNumber = gcloud projects describe $ProjectId --format='value(projectNumber)'
+    gcloud secrets add-iam-policy-binding gemini-api-key `
+      --member="serviceAccount:$projectNumber-compute@developer.gserviceaccount.com" `
+      --role='roles/secretmanager.secretAccessor' | Out-Null
+
+    Write-Host '==> Mounting the secret on the API service'
     if (-not $geminiModel) { $geminiModel = 'gemini-2.5-flash' }
-    gcloud run services update carbon-saathi-api --region=$Region --update-env-vars="GEMINI_API_KEY=$geminiKey,GEMINI_MODEL=$geminiModel"
+    gcloud run services update carbon-saathi-api --region=$Region `
+      --update-secrets="GEMINI_API_KEY=gemini-api-key:latest" `
+      --update-env-vars="GEMINI_MODEL=$geminiModel"
   }
 }
 

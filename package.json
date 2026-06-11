@@ -1,6 +1,6 @@
 {
   "name": "carbon-saathi",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Carbon Saathi — your personal climate companion for India. Measure, understand, and reduce your carbon footprint with AI guidance grounded in real Indian schemes (PM Surya Ghar, PM KUSUM, EV adoption).",
   "license": "MIT",

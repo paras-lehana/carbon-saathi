@@ -12,8 +12,16 @@ and payback years for *your* electricity bill.
 
 Built with **Google Antigravity + Gemini**.
 
-> **Live demo**: [https://carbon-saathi-web-ktdjm6xcyq-el.a.run.app](https://carbon-saathi-web-ktdjm6xcyq-el.a.run.app) (Cloud Run, asia-south1)
+> **Live demo**: [https://carbon-saathi-web-ktdjm6xcyq-el.a.run.app](https://carbon-saathi-web-ktdjm6xcyq-el.a.run.app) (Cloud Run, asia-south1 — Mumbai, closest region to the users this app serves)
 > **API**: [https://carbon-saathi-api-ktdjm6xcyq-el.a.run.app/api/health](https://carbon-saathi-api-ktdjm6xcyq-el.a.run.app/api/health) — live Gemini 2.5-flash, `demoMode: false`
+
+**30-second verification for evaluators**
+
+1. `curl https://carbon-saathi-api-ktdjm6xcyq-el.a.run.app/api/health` → expect `"demoMode": false` (live Gemini, key via Secret Manager).
+2. Open the live demo and take the 30-second quiz on the landing page — you'll own a dashboard with a badge in under a minute.
+3. Visit `/google-services` for the self-reporting integration catalog (served by the API, rendered on Cloud Run).
+4. Clone and run with **zero keys**: `npm install && npm test && npm run dev` — every feature degrades to a deterministic demo mode.
+5. Rubric-axis → evidence index: [EVALUATION_MAPPING.md](EVALUATION_MAPPING.md).
 
 ---
 
@@ -26,16 +34,25 @@ Built with **Google Antigravity + Gemini**.
 | **Efficiency** | Zero-dependency domain core (zod only), in-memory stores and caches with a pagination-ready interface, deterministic fallbacks instead of network retries, ≤180-word assistant token budget, lazy-loaded heavy UI, structured logs (no payload echo). Decisions documented in [ARCHITECTURE.md](ARCHITECTURE.md#efficiency-decisions). |
 | **Testing** | Unit (one vitest file per core module, [`packages/core/src/__tests__`](packages/core/src/__tests__)), API integration via supertest ([`apps/api/src/__tests__`](apps/api/src/__tests__)), web component tests (RTL + jsdom), Playwright e2e journeys, and automated axe-core accessibility scans ([`e2e/a11y.spec.ts`](e2e/a11y.spec.ts)). Layer matrix and honest gaps: [TESTING.md](TESTING.md). |
 | **Accessibility** | WCAG 2.1 AA by design: skip-link, semantic landmarks, labelled inputs, focus-visible rings, 4.5:1+ token contrast (computed ratios documented), full keyboard journey, `aria-live` feedback, `prefers-reduced-motion` honoured in CSS and framer-motion. Evidence: [ACCESSIBILITY.md](ACCESSIBILITY.md). |
-| **Google Services** | 10 integrations in a typed, API-served catalog ([`service-catalog.ts`](packages/core/src/google/service-catalog.ts)) — Gemini API (implemented), Maps Distance Matrix (ready-with-key), Cloud Run + Cloud Logging (implemented), Firebase Auth/Firestore/Hosting + Secret Manager (planned, interfaces ready). Live evidence page at `/google-services`. Per-service contract: [GOOGLE_SERVICES.md](GOOGLE_SERVICES.md). |
+| **Google Services** | 12 integrations in a typed, API-served catalog ([`service-catalog.ts`](packages/core/src/google/service-catalog.ts)) — **six live in production**: Gemini API (2.5-flash), Cloud Run (both services, asia-south1), Cloud Build (every deploy), Artifact Registry, Cloud Logging, Secret Manager (Gemini key mounted by reference). Maps + GA4 ready-with-key; Firebase trio planned with interfaces ready. Live evidence page at `/google-services`. Per-service contract: [GOOGLE_SERVICES.md](GOOGLE_SERVICES.md). |
 
 ---
 
 ## 🌱 What it does
 
+- **30-second quiz onboarding** — a cold visitor answers 5 taps on the landing page, gets an
+  instant CO₂ estimate, and lands on a personal dashboard with their first badge — no sign-up,
+  under a minute (`packages/core/src/quick-quiz.ts` → `POST /api/quiz/estimate`).
 - **Baseline footprint survey** — 5-step wizard converts household electricity, LPG, commute,
   flights, diet, and shopping into annual kg CO₂e per person, benchmarked against the
   India average (~2 t) and urban affluent (~4 t), using CEA's grid factor of
   **0.716 kg CO₂/kWh**.
+- **Badges & daily pledge** — an 8-badge catalog awarded server-side (first quiz, first action,
+  streak milestones, 10 kg saved, weekly mission, pledge kept), plus a daily pledge: commit to
+  one action and earn a **1.2× points bonus** when you log it the same day.
+- **Initiatives Hub** — 25+ sourced climate initiatives across Mission LiFE's themes (UJALA,
+  BEE star ratings, PM E-DRIVE, Green Credit Programme, Jal Shakti, Miyawaki forests …) with
+  per-initiative CO₂/₹ figures derived from the same emission factors as the calculators.
 - **Daily action log** — a 12-action catalog (metro instead of car, veg day, AC +1 °C, …)
   with per-unit CO₂ savings, points, levels (Seed → Forest), streaks with shields, and
   weekly missions.
@@ -67,7 +84,7 @@ Then open **http://localhost:3000**.
 
 **Demo mode (default):** with no API keys configured, `DEMO_MODE=true` and every Google
 integration degrades gracefully — the assistant returns deterministic replies built from the
-*same* calculator outputs, commute comparison uses labelled estimates, and all 10 pages
+*same* calculator outputs, commute comparison uses labelled estimates, and all 11 pages
 render fully. Copy [`.env.example`](.env.example) to `.env` and add keys whenever you want
 live Gemini/Maps; nothing else changes. See [GOOGLE_SERVICES.md](GOOGLE_SERVICES.md) for the
 per-service activation walkthrough.
@@ -75,9 +92,21 @@ per-service activation walkthrough.
 End-to-end and accessibility suites (require the dev servers' ports to be free):
 
 ```bash
-npm run e2e     # Playwright: smoke, journey, schemes, assistant
-npm run a11y    # axe-core scan across all 10 routes
+npm run e2e     # Playwright: smoke, journey (incl. the quiz funnel), schemes, assistant
+npm run a11y    # axe-core scan across all 11 routes
 ```
+
+## 🧹 Code quality
+
+Every claim below is verifiable in-repo:
+
+- **Strict TypeScript everywhere** — `"strict": true` in [`tsconfig.base.json`](tsconfig.base.json); zero `any`, zero non-null `!` assertions, zero `@ts-ignore` in source.
+- **Pure domain core** — calculators never throw across boundaries: [`Result<T, AppError>`](packages/core/src/result.ts) is the only error channel.
+- **Every number carries its source** — emission factors, subsidy bands and initiative figures all cite provenance inline ([`emission-factors.ts`](packages/core/src/emission-factors.ts), [`initiatives.ts`](packages/core/src/initiatives.ts)).
+- **One wire contract** — shared zod schemas ([`schemas.ts`](packages/core/src/schemas.ts), `.strict()` at request boundaries) keep web and API in lock-step; drift is a compile error.
+- **File-header convention** — every source file opens with a responsibility + boundary comment (what it owns vs what callers own).
+- **A vitest file per core module** + integration tests per API route + RTL component tests + Playwright e2e/a11y — all run by [CI on every push](.github/workflows/ci.yml).
+- **Prettier-formatted**, no stray lint suppressions, conventional naming throughout.
 
 ## 📸 Screenshots
 
@@ -96,6 +125,7 @@ Captured by the Playwright suite into [`e2e/screenshots/`](e2e/screenshots)
 | Action logging catalog | ![Actions page](e2e/screenshots/actions.png) |
 | EV fit coach | ![EV coach wizard](e2e/screenshots/ev-coach.png) |
 | Leaderboard with your row highlighted | ![Leaderboard](e2e/screenshots/leaderboard.png) |
+| Initiatives hub (Mission LiFE catalog) | ![Initiatives hub](e2e/screenshots/initiatives.png) |
 | Google services evidence page | ![Google services catalog](e2e/screenshots/google-services.png) |
 
 ## 🏗️ Architecture at a glance
@@ -130,14 +160,18 @@ fallback): [ARCHITECTURE.md](ARCHITECTURE.md).
 | [`packages/core/src/kusum.ts`](packages/core/src/kusum.ts) | PM KUSUM A/B/C routing + subsidy split | To check the farmer advisory |
 | [`packages/core/src/ev-fit.ts`](packages/core/src/ev-fit.ts) | EV recommendation decision tree | To check EV savings claims |
 | [`packages/core/src/actions.ts`](packages/core/src/actions.ts) | 12-action catalog with per-day caps | To see anti-gaming bounds |
-| [`packages/core/src/gamification.ts`](packages/core/src/gamification.ts) | Points, levels, streak shields, missions | To understand the habit loop |
+| [`packages/core/src/gamification.ts`](packages/core/src/gamification.ts) | Points, levels, streak shields, missions, pledge bonus | To understand the habit loop |
+| [`packages/core/src/quick-quiz.ts`](packages/core/src/quick-quiz.ts) | 30-second quiz → survey mapping → instant estimate | To verify the quiz funnel math |
+| [`packages/core/src/badges.ts`](packages/core/src/badges.ts) | 8-badge catalog with table-driven award rules | To see how badges are earned |
+| [`packages/core/src/initiatives.ts`](packages/core/src/initiatives.ts) | Mission LiFE catalog, 25+ sourced initiatives | To audit the initiative figures |
 | [`packages/core/src/google/service-catalog.ts`](packages/core/src/google/service-catalog.ts) | Typed Google-integration evidence catalog | To verify Google Services claims |
 | [`packages/core/src/__tests__/`](packages/core/src/__tests__) | One vitest file per core module | To see realistic Indian test scenarios |
 | [`apps/api/src/server.ts`](apps/api/src/server.ts) | `buildApp(config)` factory — all hardening wired here | To review the security middleware stack |
 | [`apps/api/src/services/assistant.ts`](apps/api/src/services/assistant.ts) | Grounding pipeline: calculators → prompt → Gemini | To review the AI safety design |
 | [`apps/api/src/services/prompt-boundary.ts`](apps/api/src/services/prompt-boundary.ts) | Untrusted-input delimiter wrapping | To review prompt-injection defence |
 | [`apps/api/src/services/store.ts`](apps/api/src/services/store.ts) | `UserStore` interface + in-memory impl | To see the Firestore-ready persistence seam |
-| [`apps/web/app/`](apps/web/app) | 10 App Router pages | To explore the UX |
+| [`apps/web/app/`](apps/web/app) | 11 App Router pages | To explore the UX |
+| [`scripts/deploy.ps1`](scripts/deploy.ps1) | One-command Cloud Run deploy (Cloud Build + Secret Manager) | To reproduce the live deployment |
 | [`apps/web/lib/`](apps/web/lib) | Typed api-client, storage with corruption recovery, contexts | To review client-side robustness |
 | [`e2e/`](e2e) | Playwright smoke/journey/schemes/assistant/a11y specs | To see the user journeys exercised |
 | [`.env.example`](.env.example) | Environment schema of record | Before configuring any key |
@@ -147,16 +181,18 @@ fallback): [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Service | Status | Fallback without key |
 |---|---|---|
-| Gemini API (AI Studio) | `implemented` | Deterministic demo replies from the same calculators |
+| Gemini API (AI Studio) | `implemented` — live, 2.5-flash | Deterministic demo replies from the same calculators |
+| Cloud Run | `implemented` — both services live, asia-south1 | Runs as a plain Node process |
+| Cloud Build | `implemented` — builds every deploy | Local `docker build` with the same Dockerfiles |
+| Artifact Registry | `implemented` — regional image store | Any OCI registry |
+| Cloud Logging | `implemented` — live ingestion | stdout JSON lines |
+| Secret Manager | `implemented` — Gemini key mounted by reference | Git-ignored `.env` files |
 | Maps Distance Matrix | `ready-with-key` | Labelled distance estimate |
 | Maps JavaScript API | `ready-with-key` | Static comparison, no interactive map |
-| Cloud Run | `implemented` | Runs as a plain Node process |
-| Cloud Logging | `implemented` | stdout JSON lines |
 | Google Analytics 4 | `ready-with-key` | Zero tracking by default |
 | Firebase Auth | `planned` | Anonymous local profiles (no PII) |
 | Cloud Firestore | `planned` | `InMemoryUserStore` behind the same interface |
 | Firebase Hosting | `planned` | Any static host |
-| Secret Manager | `planned` | Git-ignored `.env` files |
 
 Live, self-reporting version: `GET /api/google/services` rendered at `/google-services`.
 Full contract: [GOOGLE_SERVICES.md](GOOGLE_SERVICES.md).

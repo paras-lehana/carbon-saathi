@@ -28,7 +28,10 @@ export function validateBody<T>(schema: z.ZodType<T>): RequestHandler {
       const path = issue.path.join('.');
       sendError(
         res,
-        appError('VALIDATION_FAILED', path.length > 0 ? `${path}: ${issue.message}` : issue.message),
+        appError(
+          'VALIDATION_FAILED',
+          path.length > 0 ? `${path}: ${issue.message}` : issue.message,
+        ),
       );
       return;
     }

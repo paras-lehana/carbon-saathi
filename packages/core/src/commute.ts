@@ -34,9 +34,7 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export function estimateCommuteModes(
-  distanceKm: number,
-): Result<CommuteModeEstimate[], AppError> {
+export function estimateCommuteModes(distanceKm: number): Result<CommuteModeEstimate[], AppError> {
   if (!Number.isFinite(distanceKm) || distanceKm <= 0 || distanceKm > MAX_DISTANCE_KM) {
     return err(
       appError('VALIDATION_FAILED', `distanceKm must be between 0 and ${MAX_DISTANCE_KM}`),

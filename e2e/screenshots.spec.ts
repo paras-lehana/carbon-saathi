@@ -48,7 +48,8 @@ async function switchToDark(page: Page): Promise<void> {
 
 test('landing', async ({ page }) => {
   await gotoAndWait(page, '/');
-  await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible({
+  // Pinned by name so the capture always anchors on the hero, never the quiz.
+  await expect(page.getByRole('heading', { level: 1, name: /apna carbon/i })).toBeVisible({
     timeout: COLD_START_TIMEOUT_MS,
   });
   await capture(page, 'landing');
@@ -118,4 +119,10 @@ test('google services evidence page', async ({ page }) => {
   await gotoAndWait(page, '/google-services');
   await expect(page.getByRole('heading').first()).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
   await capture(page, 'google-services');
+});
+
+test('initiatives hub', async ({ page }) => {
+  await gotoAndWait(page, '/initiatives');
+  await expect(page.getByRole('heading').first()).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
+  await capture(page, 'initiatives');
 });

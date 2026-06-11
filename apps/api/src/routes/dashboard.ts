@@ -7,7 +7,6 @@ import {
   appError,
   evaluateMissions,
   impactAnalogies,
-  levelForPoints,
   ACTION_CATALOG,
   type ActionCategory,
   type ActionDefinition,
@@ -15,7 +14,9 @@ import {
 } from '@carbon-saathi/core';
 import { Router } from 'express';
 import { asyncHandler, sendError } from '../middleware/validate';
+import { summarizeGamification } from '../services/gamification-view';
 import type { UserStore } from '../services/store';
+import { istWeekStartISO } from '../services/time';
 
 const SUGGESTION_COUNT = 3;
 const RECENT_ACTIONS_COUNT = 10;
@@ -40,14 +41,6 @@ function pickSuggestions(topDriver: FootprintCategory | undefined): ActionDefini
   return padded.slice(0, SUGGESTION_COUNT);
 }
 
-/** Monday of the current UTC week — matches the core missions' half-open window. */
-function weekStartISO(nowMs: number): string {
-  const date = new Date(nowMs);
-  const daysSinceMonday = (date.getUTCDay() + 6) % 7;
-  const monday = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() - daysSinceMonday);
-  return new Date(monday).toISOString().slice(0, 10);
-}
-
 export function createDashboardRouter(store: UserStore, now: () => number): Router {
   const router = Router();
   router.get(
@@ -59,21 +52,14 @@ export function createDashboardRouter(store: UserStore, now: () => number): Rout
         sendError(res, appError('NOT_FOUND', 'Unknown userId — bootstrap first.'));
         return;
       }
-      const missions = evaluateMissions(user.gamification.actionLog, weekStartISO(now()));
+      const missions = evaluateMissions(user.gamification.actionLog, istWeekStartISO(now()));
       if (!missions.ok) {
         sendError(res, missions.error);
         return;
       }
       res.json({
         baseline: user.baseline ?? null,
-        gamification: {
-          points: user.gamification.points,
-          totalCo2SavedKg: user.gamification.totalCo2SavedKg,
-          streak: user.gamification.streak,
-          earnedBadges: user.gamification.earnedBadges,
-          pledge: user.gamification.pledge,
-          level: levelForPoints(user.gamification.points),
-        },
+        gamification: summarizeGamification(user.gamification),
         missions: missions.value,
         recentActions: [...user.gamification.actionLog].slice(-RECENT_ACTIONS_COUNT).reverse(),
         suggestions: pickSuggestions(user.baseline?.topDriver),

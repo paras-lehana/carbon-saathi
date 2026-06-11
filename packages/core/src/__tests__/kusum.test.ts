@@ -16,7 +16,12 @@ function unwrap(result: Result<KusumResult, AppError>): KusumResult {
 describe('adviseKusum — component routing', () => {
   it('diesel pump → Component B with the 30/30/40 split on a 5 HP pump', () => {
     const r = unwrap(
-      adviseKusum({ farmerType: 'individual', pumpType: 'diesel', pumpHp: 5, hasBarrenLand: false }),
+      adviseKusum({
+        farmerType: 'individual',
+        pumpType: 'diesel',
+        pumpHp: 5,
+        hasBarrenLand: false,
+      }),
     );
     expect(r.component).toBe('B');
     expect(r.estCostInr).toBe(300_000); // ₹60k/HP × 5
@@ -32,7 +37,12 @@ describe('adviseKusum — component routing', () => {
 
   it('diesel pump displaces 720 L/yr → 1930 kg CO2 at 2.68 kg/L', () => {
     const r = unwrap(
-      adviseKusum({ farmerType: 'individual', pumpType: 'diesel', pumpHp: 5, hasBarrenLand: false }),
+      adviseKusum({
+        farmerType: 'individual',
+        pumpType: 'diesel',
+        pumpHp: 5,
+        hasBarrenLand: false,
+      }),
     );
     expect(r.dieselSavedLitresPerYear).toBe(720);
     expect(r.co2AvoidedKgPerYear).toBe(1930); // 720 × 2.68 = 1929.6
@@ -75,11 +85,23 @@ describe('adviseKusum — Component A suggestion', () => {
 
   it('skips Component A below 2 acres or without barren land', () => {
     const small = unwrap(
-      adviseKusum({ farmerType: 'individual', pumpType: 'diesel', pumpHp: 5, hasBarrenLand: true, landAcres: 1 }),
+      adviseKusum({
+        farmerType: 'individual',
+        pumpType: 'diesel',
+        pumpHp: 5,
+        hasBarrenLand: true,
+        landAcres: 1,
+      }),
     );
     expect(small.componentASuggestion).toBeUndefined();
     const noLand = unwrap(
-      adviseKusum({ farmerType: 'individual', pumpType: 'diesel', pumpHp: 5, hasBarrenLand: false, landAcres: 4 }),
+      adviseKusum({
+        farmerType: 'individual',
+        pumpType: 'diesel',
+        pumpHp: 5,
+        hasBarrenLand: false,
+        landAcres: 4,
+      }),
     );
     expect(noLand.componentASuggestion).toBeUndefined();
   });
@@ -88,16 +110,31 @@ describe('adviseKusum — Component A suggestion', () => {
 describe('adviseKusum — guidance and validation', () => {
   it('ships a 6-step checklist and the MNRE link', () => {
     const r = unwrap(
-      adviseKusum({ farmerType: 'individual', pumpType: 'diesel', pumpHp: 5, hasBarrenLand: false }),
+      adviseKusum({
+        farmerType: 'individual',
+        pumpType: 'diesel',
+        pumpHp: 5,
+        hasBarrenLand: false,
+      }),
     );
     expect(r.checklist).toHaveLength(6);
     expect(r.officialLink).toBe('https://mnre.gov.in');
   });
 
   it('rejects pump horsepower outside 1-10', () => {
-    const low = adviseKusum({ farmerType: 'individual', pumpType: 'diesel', pumpHp: 0, hasBarrenLand: false });
+    const low = adviseKusum({
+      farmerType: 'individual',
+      pumpType: 'diesel',
+      pumpHp: 0,
+      hasBarrenLand: false,
+    });
     expect(!low.ok && low.error.code).toBe('VALIDATION_FAILED');
-    const high = adviseKusum({ farmerType: 'individual', pumpType: 'diesel', pumpHp: 12, hasBarrenLand: false });
+    const high = adviseKusum({
+      farmerType: 'individual',
+      pumpType: 'diesel',
+      pumpHp: 12,
+      hasBarrenLand: false,
+    });
     expect(!high.ok && high.error.code).toBe('VALIDATION_FAILED');
   });
 });

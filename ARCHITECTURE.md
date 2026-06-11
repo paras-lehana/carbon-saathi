@@ -10,8 +10,8 @@ feature works with zero keys.
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                            apps/web (Next.js 15)                         │
-│  App Router pages: / /onboarding /dashboard /actions /schemes /ev-coach  │
-│  /assistant /leaderboard /google-services /about                         │
+│  App Router pages: / /onboarding /dashboard /actions /initiatives        │
+│  /schemes /ev-coach /assistant /leaderboard /google-services /about      │
 │  lib/api-client.ts (typed fetch, never throws raw)                       │
 │  lib/storage.ts (localStorage mirror + corrupt-JSON recovery)            │
 └───────────────┬──────────────────────────────────────────────────────────┘
@@ -22,10 +22,11 @@ feature works with zero keys.
 │  server.ts buildApp(config) — DI: no process.env outside config.ts       │
 │  middleware: helmet CSP · CORS allowlist · 32kb JSON cap ·                │
 │              token-bucket rate limit · zod validate · JSON logger        │
-│  routes: health footprint actions dashboard schemes ev commute           │
-│          leaderboard assistant google-services                           │
+│  routes: health footprint actions dashboard quiz pledge schemes ev       │
+│          commute leaderboard assistant google-services                   │
 │  services: store.ts (UserStore) · assistant.ts · prompt-boundary.ts ·    │
-│            gemini-client.ts · maps-client.ts                             │
+│            gemini-client.ts · maps-client.ts · gamification-view.ts ·    │
+│            time.ts (IST day boundaries)                                  │
 └───────────────┬──────────────────────────────────────────────────────────┘
                 │  imports calculators, schemas, types
                 ▼
@@ -33,13 +34,16 @@ feature works with zero keys.
 │                  packages/core (@carbon-saathi/core)                     │
 │  Pure, deterministic, side-effect-free. Result<T, AppError> everywhere.  │
 │  emission-factors → baseline · actions · surya-ghar · kusum · ev-fit ·   │
-│  commute · gamification · google/service-catalog · schemas (zod)         │
+│  commute · gamification · quick-quiz · badges · initiatives ·            │
+│  google/service-catalog · schemas (zod)                                  │
 │  No Date.now(), no Math.random() — time/seeds are parameters.            │
 └──────────────────────────────────────────────────────────────────────────┘
                 │  optional, key-gated outbound calls
                 ▼
    Gemini API (generativelanguage.googleapis.com) · Maps Distance Matrix
-   Roadmap: Firestore · Firebase Auth · Secret Manager · Cloud Run deploy
+   Deployed: Cloud Run (asia-south1) · Cloud Build · Artifact Registry ·
+   Secret Manager · Cloud Logging — see GOOGLE_SERVICES.md
+   Roadmap: Firestore · Firebase Auth
 ```
 
 Why this shape:
@@ -112,9 +116,9 @@ assistant.ts intent routing (keyword match: scheme / EV / baseline intents)
       ├─ DEMO_MODE=true → deterministic reply template using the SAME
       │  calculator outputs (demo answers contain real numbers)
       │
-      └─ DEMO_MODE=false → gemini-client.ts REST call (gemini-2.0-flash),
-         ≤180-word budget, India-focused coach persona, refuses
-         off-topic/political, labels estimates
+      └─ DEMO_MODE=false → gemini-client.ts REST call (gemini-2.5-flash,
+         thinking disabled), ≤180-word budget, India-focused coach persona,
+         refuses off-topic/political, labels estimates
       ▼
 { reply, mode: 'gemini'|'demo', grounding: { usedBaseline, usedSchemes } }
 ```
@@ -162,6 +166,8 @@ parameters) so the in-memory and Firestore implementations share call sites.
 | `transpilePackages: ['@carbon-saathi/core']` + single core build | `next.config.ts`, root scripts | Core compiles once; web/api consume the same artifact |
 | Lazy-loaded charts/heavy components, `next/font` self-hosting | `apps/web` | Smaller first paint; no third-party font request |
 | localStorage mirror with SSR guards | `lib/storage.ts` | Instant dashboard paint from cache while the API confirms |
+| Cloud Run scale-to-zero (min-instances 0) | `cloudbuild-*.yaml` | ≈₹0 idle spend; cold starts stay fast because the zero-dep core keeps the bundle small |
+| asia-south1 (Mumbai) region | `cloudbuild-*.yaml`, `deploy.ps1` | Lowest latency for the Indian users this product serves |
 
 ## Error handling contract
 

@@ -29,6 +29,9 @@ import { levelIconForName, levelProgressForPoints } from '../../../lib/levels';
 const QUICK_ACTION_COUNT = 4;
 const MINI_BOARD_SIZE = 3;
 
+// Module-scope so the ?? fallback keeps a stable identity across renders.
+const EMPTY_BADGES: string[] = [];
+
 // Built once per module — Intl construction is expensive (lib/format pattern).
 const DAY_FORMATTER = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' });
 
@@ -80,6 +83,10 @@ export function DashboardGrid({
       `+${result.data.impact.co2SavedKg} kg CO₂ saved · +${result.data.impact.points} points`,
       'success',
     );
+    // Badge awards ride on the log response — each gets its own toast.
+    for (const badge of result.data.newBadges ?? []) {
+      showToast(`Badge earned: ${badge.icon} ${badge.name}`, 'success');
+    }
     await onRefresh(); // points/streak/missions all moved — repaint from the server
     setLoggingId(null);
   };
@@ -157,14 +164,15 @@ export function DashboardGrid({
       </GlassCard>
 
       {/* ── Badges ── */}
-      <GlassCard as="section" className="bento-wide" aria-label="Earned badges">
-        <BadgeWall earnedIds={gamification.earnedBadges ?? []} />
+      <GlassCard as="section" className="bento-wide" aria-labelledby="badge-wall-heading">
+        <BadgeWall earnedIds={gamification.earnedBadges ?? EMPTY_BADGES} />
       </GlassCard>
 
       {/* ── Daily pledge ── */}
       <DailyPledgeCard
         userId={userId}
         currentPledge={gamification.pledge ?? null}
+        onPledgeSet={() => void onRefresh()}
       />
 
       {/* ── Weekly missions ── */}

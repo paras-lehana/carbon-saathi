@@ -257,23 +257,41 @@ export interface ImpactAnalogies {
   phoneCharges: number;
 }
 
-// ── Quiz (30-second onboarding) ────────────────────────────────────────────
+// ── Quiz (30-second onboarding) ───────────────────────────────────────────────
 
 export type QuizQuestionId = 'commute' | 'ac' | 'diet' | 'flights' | 'shopping';
+
+// Literal unions per question: an invalid option id is a compile error, so
+// quizToSurvey needs no runtime fallbacks (schemas.ts enforces the same set
+// at the HTTP edge via z.enum).
+export type QuizCommuteAnswer = 'car' | 'two-wheeler' | 'metro-bus' | 'cycle-walk' | 'wfh';
+export type QuizAcAnswer = 'all-night' | 'few-hours' | 'rarely' | 'no-ac';
+export type QuizDietAnswer = 'nonveg-daily' | 'nonveg-weekly' | 'eggs' | 'veg';
+export type QuizFlightsAnswer = 'none' | 'one-two' | 'three-plus';
+export type QuizShoppingAnswer = 'minimal' | 'monthly' | 'love-shopping';
+
 export interface QuizOption {
   id: string;
   label: string;
   emoji: string;
   blurb: string;
 }
+
 export interface QuizQuestion {
   id: QuizQuestionId;
   prompt: string;
   options: QuizOption[];
 }
-export type QuizAnswers = Record<QuizQuestionId, string>;
 
-// ── Badges ────────────────────────────────────────────────────────────────
+export interface QuizAnswers {
+  commute: QuizCommuteAnswer;
+  ac: QuizAcAnswer;
+  diet: QuizDietAnswer;
+  flights: QuizFlightsAnswer;
+  shopping: QuizShoppingAnswer;
+}
+
+// ── Badges ────────────────────────────────────────────────────────────────────
 
 export interface BadgeDefinition {
   id: string;
@@ -282,6 +300,21 @@ export interface BadgeDefinition {
   icon: string;
   hint: string;
 }
+
+/** Everything evaluateBadges needs to decide awards — assembled by the API from server-side state. */
+export interface BadgeEvaluationInput {
+  /** Badge ids already on the user; evaluation never re-awards these. */
+  readonly earnedBadges: readonly string[];
+  readonly hasBaseline: boolean;
+  readonly joinedViaQuiz: boolean;
+  readonly actionCount: number;
+  readonly streakCurrent: number;
+  readonly totalCo2SavedKg: number;
+  readonly missionCompleted: boolean;
+  readonly pledgeCompleted: boolean;
+}
+
+// ── Daily pledge ──────────────────────────────────────────────────────────────
 
 export interface DailyPledge {
   actionId: string;
@@ -294,8 +327,44 @@ export interface GamificationState {
   totalCo2SavedKg: number;
   streak: StreakState;
   actionLog: ActionLogEntry[];
-  earnedBadges: string[]; // badge ids only
+  /** Earned badge ids only — definitions live in the badge catalog. */
+  earnedBadges: string[];
   pledge: DailyPledge | null;
+}
+
+// ── Initiatives (Mission LiFE catalog) ────────────────────────────────────────
+
+export type InitiativeCategory =
+  | 'home-energy'
+  | 'mobility'
+  | 'food'
+  | 'waste'
+  | 'water'
+  | 'finance'
+  | 'community';
+
+export interface Initiative {
+  id: string;
+  category: InitiativeCategory;
+  title: string;
+  subtitle: string;
+  /** Concrete individual benefit in plain language, with the source named inline. */
+  benefit: string;
+  /** Approximate annual kg CO2e avoided at the stated scale. */
+  co2AvoidedKgAnnual?: number;
+  /** Approximate annual ₹ saved at the stated scale. */
+  rupeesSavedAnnual?: number;
+  /**
+   * Whether the numbers describe one household or a community installation —
+   * community figures are 10-150× household ones and must never be summed
+   * or ranked against household entries without this flag.
+   */
+  scale: 'household' | 'community';
+  howToStart: string;
+  /** Official portal or best reference URL. */
+  portalUrl?: string;
+  /** Scheme or programme name if applicable. */
+  scheme?: string;
 }
 
 /** Full server-side user record — also the bootstrap response shape. */
@@ -332,7 +401,10 @@ export interface BootstrapRequest {
   userId?: string;
   displayName?: string;
   baseline?: BaselineFootprintResult;
+  /** Raw survey answers behind the baseline — persisted so the assistant can ground on them. */
+  survey?: BaselineSurveyInput;
   gamification?: GamificationState;
+  /** How this user arrived — drives the quiz-whiz badge and joinedVia. */
   source?: 'quiz' | 'survey';
 }
 

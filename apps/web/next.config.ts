@@ -20,6 +20,25 @@ const nextConfig: NextConfig = {
     const apiBase = process.env.API_BASE_URL ?? 'http://localhost:8080';
     return [{ source: '/api/:path*', destination: `${apiBase}/api/:path*` }];
   },
+  async headers() {
+    // Security: helmet hardens only the JSON API — this origin serves the
+    // actual HTML/JS to browsers, so it needs its own header posture.
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          // No page here ever needs framing — kills clickjacking outright.
+          { key: 'X-Frame-Options', value: 'DENY' },
+          // Browsers must honor declared MIME types, never sniff.
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Cross-origin requests get the origin only — no path leakage.
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Cloud Run terminates TLS; a year of HSTS pins browsers to HTTPS.
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

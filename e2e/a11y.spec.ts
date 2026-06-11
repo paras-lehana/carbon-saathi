@@ -12,6 +12,7 @@ const ROUTES: ReadonlyArray<string> = [
   '/onboarding',
   '/dashboard',
   '/actions',
+  '/initiatives',
   '/schemes',
   '/ev-coach',
   '/assistant',

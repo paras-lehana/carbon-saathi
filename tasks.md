@@ -92,24 +92,33 @@
 
 ---
 
-## Phase 6 — Live Google Activation (Day 3–4) ⬜
+## Phase 6 — Live Google Activation (Day 3–4) 🔄
 
-- [ ] Create/restrict API keys (Gemini, Maps server + browser) in Google Cloud console
-- [ ] Flip `DEMO_MODE=false` locally; verify Saathi Chat on live Gemini (`gemini-2.0-flash`)
-- [ ] Tune system prompt with live responses; add safety-settings config; log token usage
-- [ ] Live Distance Matrix on `/api/commute/compare` (origin/destination text inputs)
+- [x] Create Gemini API key (AI Studio); wire via gitignored `.env` + Secret Manager in production
+- [x] Flip `DEMO_MODE=false`; verify Saathi Chat on live Gemini (`gemini-2.5-flash` — 2.0-flash 429s on new keys)
+- [x] Disable thinking tokens (`thinkingBudget: 0`) so replies stay direct and within budget
+- [ ] Maps key + live Distance Matrix on `/api/commute/compare` (origin/destination text inputs)
 - [ ] Add GA4 measurement snippet behind `NEXT_PUBLIC_GA4_MEASUREMENT_ID` + event helpers (page_view, baseline_completed, action_logged, scheme_calculated, assistant_query)
 - [ ] Negative-path tests: expired key, quota exceeded → graceful fallback banners
 
-**Acceptance**: live chat grounded with calculator numbers; fallbacks still pass with keys removed.
+**Acceptance**: live chat grounded with calculator numbers; fallbacks still pass with keys removed. ✅ verified on the deployed service (`demoMode: false`).
 
-## Phase 7 — Initiatives Hub & Firebase Persistence (Day 4–6) ⬜
+## Phase 6.5 — Instant Gamification (Day 4) ✅
 
-- [ ] Core: `initiatives.ts` + `INITIATIVE_CATALOG` (≥20 entries across 7 categories), `InitiativeCategory` type, `initiativesByCategory()` helper
-- [ ] Catalog entries: home-energy (UJALA/BEE/induction), mobility (PM E-DRIVE/metro/engine-off), food (millets/compost), waste (cloth-bags/e-waste), water (tap-off/rainwater), green-money (green credit/deposits), community (tree plantation/circles)
-- [ ] Mission LiFE theme mapping: every initiative links to one of 7 official LiFE themes; landing hero pledges link merilife.nic.in
-- [ ] Web route `/initiatives`: category nav, cards with kind/benefit/howTo steps, quick-log + calculator links
-- [ ] Research integration: cite all 25 sourced claims (UJALA numbers, PM E-DRIVE allocations, LiFE stats)
+- [x] Core: `quick-quiz.ts` (5-question 30s quiz → survey mapping → baseline), `badges.ts` (8-badge catalog + table-driven rules), pledge types + 1.2× `applyPledgeBonus`
+- [x] API: `POST /api/quiz/estimate`, `POST /api/pledge`; badge evaluation wired into bootstrap + action-log; pledge bonus applied at log time with `bonusApplied` flip
+- [x] Web: landing `QuizWidget` (focus-managed, live-region announced), dashboard `BadgeWall` + `DailyPledgeCard`, badge-earned toasts
+- [x] Tests: unit (badges/quick-quiz/schemas), integration (quiz/pledge/bonus/badge flows), RTL (all three components), e2e quiz journey
+
+**Acceptance**: cold visitor → quiz → estimate → dashboard with the Quiz Whiz badge in under 60 seconds. ✅
+
+## Phase 7 — Initiatives Hub & Firebase Persistence (Day 4–6) 🔄
+
+- [x] Core: `initiatives.ts` + `INITIATIVE_CATALOG` (25+ entries across 7 categories), `InitiativeCategory` type, `initiativesByCategory()` helper, `scale` flag for community-level figures
+- [x] Catalog entries: home-energy (UJALA/BEE/Surya Ghar/induction), mobility (PM E-DRIVE/metro/carpool/engine-off), food (millets/plant-forward/food-waste), waste (segregation/compost/e-waste/reusables), water (rainwater/low-flow), green finance (Green Credit/green deposits/solar loans), community (trees/RWA solar/Miyawaki/LiFE pledge)
+- [x] Mission LiFE theme mapping: every category maps to an official LiFE theme; pledge link to merilife.gov.in
+- [x] Web route `/initiatives`: category filter pills, cards with benefit/CO₂/₹/how-to, official portal links
+- [x] Numbers derived from `EMISSION_FACTORS` with per-figure derivation comments; catalog invariants unit-tested
 - [ ] Firebase project wiring; `FirestoreUserStore implements UserStore` (drop-in for in-memory)
 - [ ] Collections: `users`, `actions` (subcollection, paginated), `leaderboards` (aggregated doc)
 - [ ] Firestore security rules: user-can-only-access-own-data; rules unit tests via emulator
@@ -119,16 +128,6 @@
 - [ ] Emulator-suite npm script for offline dev; CI uses emulators
 
 **Acceptance**: `/initiatives` page renders 7 themes with ≥20 cards; Firestore rules pass unit tests; state survives API restart.
-
-- [ ] Firebase project wiring; `FirestoreUserStore implements UserStore` (drop-in for in-memory)
-- [ ] Collections: `users`, `actions` (subcollection, paginated), `leaderboards` (aggregated doc)
-- [ ] Firestore security rules: user-can-only-access-own-data; rules unit tests via emulator
-- [ ] Firebase Auth: Google Sign-In (web) + anonymous upgrade path; API verifies ID tokens (Bearer) — replaces trusted `userId` body field
-- [ ] Migrate localStorage state → cloud on first sign-in (merge strategy)
-- [ ] Leaderboard aggregation via scheduled function or on-write trigger
-- [ ] Emulator-suite npm script for offline dev; CI uses emulators
-
-**Acceptance**: state survives API restart; rules tests prove cross-user reads fail.
 
 ## Phase 8 — AI Maps, Bill OCR & Kisan Mode (Day 6–8) ⬜
 
@@ -144,16 +143,6 @@
 - [ ] Cache geocoding/route results (in-memory LRU + Firestore) to respect quotas
 
 **Acceptance**: photo of bill produces auto-filled solar calc; `/kisan` flow operable one-handed; map shows 3 modes ranked by CO2.
-
-- [ ] Maps JavaScript API map on `/commute` page (lazy-loaded, ready-with-key)
-- [ ] Places Autocomplete for home/office inputs; save named routes per user
-- [ ] Directions/Routes API: per-mode polylines + durations; render mode comparison on map
-- [ ] "Greenest route" scoring: combine Distance Matrix + emission factors → AI summary via Gemini
-- [ ] Commute streak: detect repeated green-commute logging, bonus multiplier
-- [ ] Air-quality layer (Google Air Quality API) on map — pollution-aware route nudges
-- [ ] Cache geocoding/route results (in-memory LRU + Firestore) to respect quotas
-
-**Acceptance**: type two addresses → see modes ranked by CO2 on a live map with an AI explanation.
 
 ## Phase 9 — Circles, Gamification 2.0 & Community (Day 8–9) ⬜
 
@@ -176,17 +165,19 @@
 
 **Acceptance**: Lighthouse PWA installable; full onboarding journey completable in Hindi.
 
-## Phase 11 — Cloud Deployment & Live URLs (Day 10–11) ⬜
+## Phase 11 — Cloud Deployment & Live URLs (Day 10–11) 🔄
 
-- [x] Dockerfile (multi-stage) for API; deploy to Cloud Run (`gcloud run deploy`)
-- [x] GitHub Actions: lint + type-check + unit + e2e (with emulators) on push — wired in `.github/workflows/ci.yml`
-- [ ] Deploy to event-manager GCP project: `scripts/deploy.ps1 -ProjectId <id>` (gcloud auth login required)
-- [ ] Web: Firebase Hosting (static + rewrites to Run) or Cloud Run for SSR
-- [ ] Secret Manager for all keys; service account with least privilege
-- [ ] Cloud Logging/Monitoring dashboards; uptime check on `/api/health`
-- [ ] Custom domain + HTTPS; update README with live URL + "notes for evaluators"
+- [x] Dockerfiles (multi-stage, non-root) for API and web; Cloud Build pipelines (`cloudbuild-api.yaml`, `cloudbuild-web.yaml`)
+- [x] GitHub Actions: type-check + unit + e2e on push — wired in `.github/workflows/ci.yml` (least-privilege token)
+- [x] Deployed to GCP via `scripts/deploy.ps1` — both services live on Cloud Run, asia-south1 (Mumbai)
+- [x] Web on Cloud Run for SSR (standalone output), proxying `/api/*` to the API service
+- [x] Secret Manager for the Gemini key (mounted by reference; least-privilege accessor IAM)
+- [x] Cloud Logging via structured JSON logs + `CLOUD_LOGGING_ONLY` build logs
+- [x] README carries the live URLs + notes for evaluators
+- [ ] Monitoring dashboards; uptime check on `/api/health`
+- [ ] Custom domain
 
-**Acceptance**: public URLs serve the full app; CI green on push; logs visible in Cloud console.
+**Acceptance**: public URLs serve the full app; CI green on push; logs visible in Cloud console. ✅ live and verified.
 
 ## Phase 12 — Farmer Mode & Bill Intelligence (Day 11–12) ⬜
 

@@ -12,7 +12,11 @@ export interface LevelBadgeProps {
   className?: string;
 }
 
-export function LevelBadge({ level, compact = false, className }: LevelBadgeProps): React.JSX.Element {
+export function LevelBadge({
+  level,
+  compact = false,
+  className,
+}: LevelBadgeProps): React.JSX.Element {
   return (
     <div className={['flex items-center gap-3', className].filter(Boolean).join(' ')}>
       <span

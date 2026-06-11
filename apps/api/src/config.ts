@@ -19,8 +19,11 @@ export interface AppConfig {
   readonly assistantRateLimitMax: number;
 }
 
-// Keep in lockstep with package.json — surfaced by GET /api/health.
-export const APP_VERSION = '0.1.0';
+// Single source of truth: read once from package.json at module load, so a
+// version bump can never leave /api/health reporting a stale number. CJS
+// require resolves '../package.json' identically from src/ (tests) and dist/.
+const packageJson = require('../package.json') as { version: string };
+export const APP_VERSION = packageJson.version;
 
 const DEFAULT_PORT = 8080; // Cloud Run's conventional default when PORT is not injected
 
@@ -43,7 +46,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     // A key flips the assistant live automatically; DEMO_MODE remains an
     // explicit override in either direction. Keyless runs always demo cleanly.
     demoMode:
-      env.DEMO_MODE === 'true' ? true : env.DEMO_MODE === 'false' ? false : geminiApiKey === undefined,
+      env.DEMO_MODE === 'true'
+        ? true
+        : env.DEMO_MODE === 'false'
+          ? false
+          : geminiApiKey === undefined,
     geminiApiKey,
     // 2.5-flash: current stable with free-tier quota (2.0-flash returns 429 on new keys).
     geminiModel: nonEmpty(env.GEMINI_MODEL) ?? 'gemini-2.5-flash',

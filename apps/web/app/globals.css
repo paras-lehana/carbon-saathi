@@ -12,9 +12,11 @@
 
   --bg: #f6faf7;
   --surface: #ffffff;
+  --surface-alt: #e9f1ec; /* subtle alt fill for tracks/locked tiles — visible on both bg and surface */
   --surface-glass: rgba(255, 255, 255, 0.66);
   --text: #142a1f;
   --text-muted: rgba(20, 42, 31, 0.68); /* keeps ≥ 4.5:1 on --bg */
+  --success: #136843; /* reuses primary green — ≥ 4.5:1 on surface */
   --primary: #136843; /* 4.5:1+ even on primary-soft fills (axe-verified) */
   --primary-hover: #115e3a;
   --primary-soft: rgba(23, 122, 76, 0.12);
@@ -63,9 +65,11 @@
 
   --bg: #0f1714; /* deep moss — never pure black, per design language */
   --surface: #16211c;
+  --surface-alt: #1f2d26; /* lifted a step above surface for tracks/locked tiles */
   --surface-glass: rgba(22, 33, 28, 0.62);
   --text: #ecf4ee;
   --text-muted: rgba(236, 244, 238, 0.66);
+  --success: #3ecf8e; /* matches dark primary — ≥ 4.5:1 on dark surfaces */
   --primary: #3ecf8e;
   --primary-hover: #5cd9a4; /* hover brightens on dark (inverse of light) */
   --primary-soft: rgba(62, 207, 142, 0.16);
@@ -91,6 +95,8 @@
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-success: var(--success);
   --color-ink: var(--text);
   --color-ink-muted: var(--text-muted);
   --color-primary: var(--primary);

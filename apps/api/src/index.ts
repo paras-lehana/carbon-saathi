@@ -16,7 +16,7 @@ try {
 const config = loadConfig();
 const app = buildApp(config);
 
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
   // Structured like the request logs so Cloud Logging ingests it uniformly.
   // Security: config echoes booleans and numbers only — never key material.
   process.stdout.write(
@@ -28,4 +28,11 @@ app.listen(config.port, () => {
       version: config.version,
     })}\n`,
   );
+});
+
+// Cloud Run sends SIGTERM with a 10s grace window when a revision retires;
+// closing the listener first lets in-flight requests finish instead of
+// being reset mid-response during deploys.
+process.on('SIGTERM', () => {
+  server.close(() => process.exit(0));
 });

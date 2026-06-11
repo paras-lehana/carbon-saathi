@@ -46,6 +46,10 @@ users while keeping ≥ 16:1 body contrast.
 | Range/stepper inputs | `←`/`→` (and `+`/`−` buttons) | Adjust quantity; value changes announced via associated output |
 | Scheme tabs (Surya Ghar / KUSUM) | `←`/`→` between tabs, `Tab` into panel | ARIA tabs pattern |
 | Saathi Chat | `Tab` to input, `Enter` to send | New replies announced from the `role="log"` region; suggestion chips are buttons |
+| Landing quiz | `Tab` between options, `Enter`/`Space` to pick | Focus moves to each new question's prompt; question changes and the final estimate announced via a polite live region |
+| Daily pledge | `Tab` to the labelled select, `Enter` to pledge | Visible `<label>` via the Field primitive; failures announced with `role="alert"`; success toasted |
+| Badge wall | `Tab` through badge tiles | Each tile is a button; earned/locked state in the accessible name; the unlock hint is linked via `aria-describedby` and shows on focus as well as hover |
+| Initiatives filters | `Tab` between pills, `Enter`/`Space` to toggle | `aria-pressed` filter buttons; result count announced via a polite live region; "How to start" uses native `<details>` |
 | Toasts | none required | `aria-live` polite announcement; auto-dismiss never traps focus |
 | Theme toggle | `Enter`/`Space` | State reflected via `aria-pressed` |
 
@@ -55,10 +59,10 @@ same flow.
 
 ## Automated enforcement
 
-[`e2e/a11y.spec.ts`](e2e/a11y.spec.ts) runs @axe-core/playwright against all 10 routes —
-`/`, `/onboarding`, `/dashboard`, `/actions`, `/schemes`, `/ev-coach`, `/assistant`,
-`/leaderboard`, `/google-services`, `/about` — and fails on any **serious or critical**
-violation.
+[`e2e/a11y.spec.ts`](e2e/a11y.spec.ts) runs @axe-core/playwright against all 11 routes —
+`/`, `/onboarding`, `/dashboard`, `/actions`, `/initiatives`, `/schemes`, `/ev-coach`,
+`/assistant`, `/leaderboard`, `/google-services`, `/about` — and fails on any
+**serious or critical** violation.
 
 ```bash
 npm run a11y

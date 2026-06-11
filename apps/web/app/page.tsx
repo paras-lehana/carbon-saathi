@@ -1,7 +1,9 @@
 /**
- * Landing page: hero with an animated SVG earth/leaf scene, problem stats,
- * feature bento, how-it-works, scheme preview and final CTA. Client
- * component for framer-motion entrances — all gated by useReducedMotion.
+ * Landing page: hero with an animated SVG earth/leaf scene, the 30-second
+ * quiz hook directly beneath it, problem stats, feature bento, how-it-works,
+ * scheme preview and final CTA. Client component for framer-motion entrances
+ * — all gated by useReducedMotion. The hero h1 stays first in DOM order so
+ * the heading outline reads correctly; the hero CTA jumps to #quiz.
  */
 'use client';
 
@@ -69,7 +71,7 @@ const FEATURES = [
   {
     icon: '🌿',
     title: 'Initiatives Hub',
-    body: '25+ sourced climate actions across Mission LiFE\'s 7 themes — home energy, mobility, food, waste, water, finance and community.',
+    body: "25+ sourced climate actions across Mission LiFE's 7 themes — home energy, mobility, food, waste, water, finance and community.",
     href: '/initiatives',
   },
 ] as const;
@@ -119,7 +121,14 @@ function HeroScene({ animate }: { animate: boolean }): React.JSX.Element {
         </linearGradient>
       </defs>
       <circle cx="180" cy="205" r="155" fill="url(#heroGlow)" />
-      <circle cx="180" cy="220" r="110" fill="var(--surface)" stroke="var(--primary)" strokeWidth="3" />
+      <circle
+        cx="180"
+        cy="220"
+        r="110"
+        fill="var(--surface)"
+        stroke="var(--primary)"
+        strokeWidth="3"
+      />
       <path
         d="M118 182c20-18 50-22 64-9 12 11 3 27-13 31-22 6-41 21-57 13-12-6-6-25 6-35Z"
         fill="var(--primary-soft)"
@@ -159,17 +168,11 @@ export default function LandingPage(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-20">
-      {/* ── Instant quiz hook (above the fold) ── */}
-      <motion.section {...fadeUp} aria-labelledby="quiz-heading" className="rounded-2xl bg-primary-soft p-6 sm:p-8">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">30-second quiz</p>
-        <h2 id="quiz-heading" className="mb-4 font-display text-xl font-bold">
-          What&apos;s your carbon footprint? Find out now.
-        </h2>
-        <QuizWidget />
-      </motion.section>
-
-      {/* ── Hero ── */}
-      <section aria-labelledby="hero-heading" className="grid items-center gap-10 pt-6 md:grid-cols-2">
+      {/* ── Hero (h1 first — owns the document outline) ── */}
+      <section
+        aria-labelledby="hero-heading"
+        className="grid items-center gap-10 pt-6 md:grid-cols-2"
+      >
         <div>
           <p className="inline-block rounded-pill bg-accent-soft px-3 py-1 text-sm font-semibold">
             🇮🇳 Made for everyday India
@@ -181,27 +184,48 @@ export default function LandingPage(): React.JSX.Element {
             Apna carbon, <span className="text-primary">apne haath</span>
           </h1>
           <p className="mt-4 max-w-lg text-lg text-ink-muted">
-            Measure your footprint in two minutes, cut it with small daily actions, and unlock
-            real scheme money — PM Surya Ghar, PM KUSUM and EV guidance, with a Gemini-powered
-            coach beside you.
+            Measure your footprint in two minutes, cut it with small daily actions, and unlock real
+            scheme money — PM Surya Ghar, PM KUSUM and EV guidance, with a Gemini-powered coach
+            beside you.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button href="/onboarding" size="lg">
-              Start your baseline
+            <Button href="#quiz" size="lg">
+              Take the 30-second quiz
             </Button>
-            <Button href="/assistant" variant="ghost" size="lg">
-              Ask Saathi
+            <Button href="/onboarding" variant="ghost" size="lg">
+              Start your full baseline
             </Button>
           </div>
         </div>
         <HeroScene animate={animate} />
       </section>
 
+      {/* ── Instant quiz hook ── */}
+      <motion.section
+        {...fadeUp}
+        id="quiz"
+        aria-labelledby="quiz-heading"
+        className="rounded-card bg-primary-soft p-6 sm:p-8"
+      >
+        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
+          30-second quiz
+        </p>
+        <h2 id="quiz-heading" className="mb-4 font-display text-xl font-bold">
+          What&apos;s your carbon footprint? Find out now.
+        </h2>
+        <QuizWidget />
+      </motion.section>
+
       {/* ── Problem stats ── */}
       <motion.section {...fadeUp} aria-label="The problem in numbers">
         <div className="grid gap-4 sm:grid-cols-3">
           {PROBLEM_STATS.map((stat) => (
-            <StatCard key={stat.value} value={stat.value} label={stat.label} sublabel={stat.sublabel} />
+            <StatCard
+              key={stat.value}
+              value={stat.value}
+              label={stat.label}
+              sublabel={stat.sublabel}
+            />
           ))}
         </div>
       </motion.section>
@@ -257,7 +281,9 @@ export default function LandingPage(): React.JSX.Element {
         </h2>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <GlassCard as="article">
-            <h3 className="m-0 font-display text-lg font-bold">☀️ PM Surya Ghar: Muft Bijli Yojana</h3>
+            <h3 className="m-0 font-display text-lg font-bold">
+              ☀️ PM Surya Ghar: Muft Bijli Yojana
+            </h3>
             <p className="mt-2 text-sm text-ink-muted">
               Up to <strong className="text-ink">₹78,000 central subsidy</strong> on rooftop solar
               and up to 300 free units a month. See your size, payback and savings in seconds.

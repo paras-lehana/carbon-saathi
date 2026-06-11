@@ -15,6 +15,7 @@ import {
 const ROUTES: ReadonlyArray<string> = [
   '/dashboard',
   '/actions',
+  '/initiatives',
   '/schemes',
   '/ev-coach',
   '/assistant',
@@ -25,7 +26,9 @@ const ROUTES: ReadonlyArray<string> = [
 
 test('landing renders the hero heading', async ({ page }) => {
   await gotoAndWait(page, '/');
-  await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible({
+  // Pinned by name: if the quiz heading were ever promoted to h1, .first()
+  // must not silently start asserting the wrong section.
+  await expect(page.getByRole('heading', { level: 1, name: /apna carbon/i })).toBeVisible({
     timeout: COLD_START_TIMEOUT_MS,
   });
 });

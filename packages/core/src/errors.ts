@@ -7,8 +7,14 @@
 export const ERROR_DEFINITIONS = {
   VALIDATION_FAILED: { httpStatus: 400, defaultMessage: 'The request failed validation.' },
   NOT_FOUND: { httpStatus: 404, defaultMessage: 'The requested resource was not found.' },
-  RATE_LIMITED: { httpStatus: 429, defaultMessage: 'Too many requests — please retry in a minute.' },
-  UPSTREAM_FAILURE: { httpStatus: 502, defaultMessage: 'An upstream service did not respond correctly.' },
+  RATE_LIMITED: {
+    httpStatus: 429,
+    defaultMessage: 'Too many requests — please retry in a minute.',
+  },
+  UPSTREAM_FAILURE: {
+    httpStatus: 502,
+    defaultMessage: 'An upstream service did not respond correctly.',
+  },
   INTERNAL: { httpStatus: 500, defaultMessage: 'Something went wrong on our side.' },
 } as const satisfies Record<string, { httpStatus: number; defaultMessage: string }>;
 

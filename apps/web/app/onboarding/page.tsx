@@ -91,16 +91,21 @@ export default function OnboardingPage(): React.JSX.Element {
       return;
     }
     setSubmitting(true);
-    const baselineResult = await api.calculateBaseline(toBaselineSurveyInput(form));
+    const survey = toBaselineSurveyInput(form);
+    const baselineResult = await api.calculateBaseline(survey);
     if (!baselineResult.ok) {
       setSubmitting(false);
       showToast(baselineResult.error.message, 'error');
       return;
     }
     const displayName = form.displayName.trim();
+    // source + survey ride along: the badge engine awards pehla-kadam at
+    // bootstrap, and the assistant grounds on the persisted survey numbers.
     const userResult = await api.bootstrapUser({
       ...(displayName !== '' ? { displayName } : {}),
       baseline: baselineResult.data.baseline,
+      survey,
+      source: 'survey',
     });
     setSubmitting(false);
     if (!userResult.ok) {

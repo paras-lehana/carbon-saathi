@@ -1,11 +1,19 @@
+/**
+ * Metadata shell for /initiatives — the page is a client component, so the
+ * document title (WCAG 2.4.2) is owned by this server layout.
+ */
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Initiatives Hub — Carbon Saathi',
+  title: 'Initiatives',
   description:
-    'Mission LiFE\'s 7 climate action themes: home energy, mobility, food, waste, water, finance and community. 25+ sourced initiatives with CO₂ savings and rupee benefits.',
+    "India's individual climate action hub: 25+ sourced initiatives across Mission LiFE's themes — home energy, mobility, food, waste, water, finance and community.",
 };
 
-export default function InitiativesLayout({ children }: { children: React.ReactNode }): React.JSX.Element {
-  return <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>;
+export default function InitiativesLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return <>{children}</>;
 }

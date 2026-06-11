@@ -63,7 +63,8 @@ export default function GoogleServicesPage(): React.JSX.Element {
         <p className="mt-2 max-w-2xl text-ink-muted">
           Every Google integration in Carbon Saathi, served live from the API&rsquo;s typed
           catalog — what it does for users, where the code lives, and how it degrades without a
-          key.
+          key. This page is itself served from Cloud Run (asia-south1); the API self-reports
+          live status at /api/health.
         </p>
       </div>
 
@@ -78,7 +79,8 @@ export default function GoogleServicesPage(): React.JSX.Element {
         <div role="status" aria-label="Loading the service catalog">
           <span className="sr-only">Loading the service catalog…</span>
           <div aria-hidden="true" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }, (_, index) => (
+            {/* Mirrors the catalog size so the loading layout matches the data. */}
+            {Array.from({ length: 12 }, (_, index) => (
               <div key={index} className="glass-card h-56 animate-pulse" />
             ))}
           </div>

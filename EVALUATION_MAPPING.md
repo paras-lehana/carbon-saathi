@@ -19,8 +19,19 @@ evidence it. Every claim below is verifiable by opening the listed path.
 - Single source of truth for every emission factor, each annotated with provenance →
   [`packages/core/src/emission-factors.ts`](packages/core/src/emission-factors.ts)
   (e.g. `0.716 kg CO2e/kWh — CEA CO2 Baseline Database`).
-- Shared zod schemas: one contract for API validation and web forms →
+- Shared zod schemas: one contract for API validation and web forms; `.strict()` at
+  request boundaries so junk keys are rejected →
   [`packages/core/src/schemas.ts`](packages/core/src/schemas.ts).
+- Table-driven rules over branching: badge awards are data + one loop (no copy-pasted
+  conditionals, zero non-null assertions) →
+  [`packages/core/src/badges.ts`](packages/core/src/badges.ts).
+- Derived constants, never re-typed: initiative CO₂ figures compute from
+  `EMISSION_FACTORS` so a grid-factor update propagates everywhere →
+  [`packages/core/src/initiatives.ts`](packages/core/src/initiatives.ts).
+- Exhaustive literal-union mappings: quiz answers are typed unions, so an unmapped
+  option is a compile error, not a runtime fallback →
+  [`packages/core/src/quick-quiz.ts`](packages/core/src/quick-quiz.ts),
+  [`packages/core/src/types.ts`](packages/core/src/types.ts).
 - File header comments (responsibility + boundary) on every source file; comments explain
   *why* (sources, security, efficiency), never restate code → any file under
   [`packages/core/src/`](packages/core/src) or [`apps/api/src/`](apps/api/src).
@@ -45,9 +56,18 @@ evidence it. Every claim below is verifiable by opening the listed path.
   [`apps/api/src/services/prompt-boundary.ts`](apps/api/src/services/prompt-boundary.ts),
   consumed by [`apps/api/src/services/assistant.ts`](apps/api/src/services/assistant.ts).
 - Secret handling: env-only via [`.env.example`](.env.example) (git-ignored real files);
-  the evidence route serves env var *names* only — an integration test asserts no values
-  leak → [`apps/api/src/__tests__/`](apps/api/src/__tests__) (secret-leak assertion),
+  in production the Gemini key mounts from **Secret Manager** by reference
+  ([`scripts/deploy.ps1`](scripts/deploy.ps1)); the evidence route serves env var *names*
+  only — an integration test asserts no values leak →
+  [`apps/api/src/__tests__/`](apps/api/src/__tests__) (secret-leak assertion),
   [`packages/core/src/google/service-catalog.ts`](packages/core/src/google/service-catalog.ts).
+- Web-origin headers: `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, HSTS on every
+  page → [`apps/web/next.config.ts`](apps/web/next.config.ts) `headers()`.
+- Rate-limit integrity on Cloud Run: `trust proxy` narrowed to the single trusted hop so
+  spoofed `X-Forwarded-For` chains cannot mint fresh buckets →
+  [`apps/api/src/server.ts`](apps/api/src/server.ts).
+- Anti-minting: bootstrap restore clamps client-claimed points to the submitted ledger →
+  [`apps/api/src/routes/users.ts`](apps/api/src/routes/users.ts).
 - No-PII, local-first design: anonymous profiles, no sign-up, structured logs never contain
   raw user text → [`apps/api/src/middleware/logger.ts`](apps/api/src/middleware/logger.ts),
   privacy pledge at [`apps/web/app/about/`](apps/web/app/about).
@@ -77,19 +97,25 @@ evidence it. Every claim below is verifiable by opening the listed path.
   [`packages/core/src/__tests__/`](packages/core/src/__tests__)
   (`baseline.test.ts`, `actions.test.ts`, `surya-ghar.test.ts`, `kusum.test.ts`,
   `ev-fit.test.ts`, `commute.test.ts`, `gamification.test.ts`, `emission-factors.test.ts`,
-  `schemas.test.ts`, `result.test.ts`, `errors.test.ts`, `service-catalog.test.ts`,
-  `index.test.ts`).
+  `schemas.test.ts`, `quick-quiz.test.ts`, `badges.test.ts`, `initiatives.test.ts`,
+  `result.test.ts`, `errors.test.ts`, `service-catalog.test.ts`, `index.test.ts`).
 - API integration tests — vitest + supertest against `buildApp(config)`: success paths,
-  validation 400s, rate-limit 429, secret-leak assertion, assistant demo grounding →
-  [`apps/api/src/__tests__/`](apps/api/src/__tests__).
-- Web component tests — vitest + Testing Library + jsdom: ProgressRing, Stepper, GlassCard,
-  Toast, api-client error paths, storage corruption recovery → `apps/web` test files.
+  validation 400s, rate-limit 429, secret-leak assertion, assistant demo grounding, the
+  pledge → 1.2× bonus flow, and badge-award flows →
+  [`apps/api/src/__tests__/`](apps/api/src/__tests__) (incl. `quiz.test.ts`,
+  `pledge.test.ts`).
+- Web component tests — vitest + Testing Library + jsdom: ProgressRing, Stepper, Tabs,
+  Toast, Button, QuizWidget, DailyPledgeCard, BadgeWall, api-client error paths, storage
+  corruption recovery → `apps/web` test files.
 - E2E — Playwright: [`e2e/smoke.spec.ts`](e2e/smoke.spec.ts),
   [`e2e/journey.spec.ts`](e2e/journey.spec.ts) (onboarding → dashboard → action log →
-  points increase), [`e2e/schemes.spec.ts`](e2e/schemes.spec.ts) (₹78,000 subsidy visible
+  points increase; the landing-quiz funnel through to the earned badge; initiatives
+  filtering), [`e2e/schemes.spec.ts`](e2e/schemes.spec.ts) (₹78,000 subsidy visible
   for 350 units), [`e2e/assistant.spec.ts`](e2e/assistant.spec.ts).
-- A11y automation — axe-core across all 10 routes, zero serious/critical →
+- A11y automation — axe-core across all 11 routes, zero serious/critical →
   [`e2e/a11y.spec.ts`](e2e/a11y.spec.ts).
+- CI runs the full pyramid (type-check, tests, production build, e2e + a11y) on every
+  push → [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 - Run: `npm test` (unit + integration + component), `npm run e2e`, `npm run a11y` —
   wired in [`package.json`](package.json) and [`playwright.config.ts`](playwright.config.ts).
 
@@ -123,14 +149,22 @@ evidence it. Every claim below is verifiable by opening the listed path.
   [`apps/api/src/services/assistant.ts`](apps/api/src/services/assistant.ts).
 - Maps Distance Matrix (`ready-with-key`) — live distances with labelled estimate fallback →
   [`apps/api/src/services/maps-client.ts`](apps/api/src/services/maps-client.ts).
-- Cloud Run (`implemented` contract) — PORT binding, stateless, env-driven config →
-  [`apps/api/src/index.ts`](apps/api/src/index.ts), [`apps/api/src/config.ts`](apps/api/src/config.ts).
-- Cloud Logging (`implemented`) — structured JSON lines ingest natively →
+- Cloud Run (`implemented`, **live**) — both services deployed in asia-south1:
+  web <https://carbon-saathi-web-ktdjm6xcyq-el.a.run.app>, API health
+  <https://carbon-saathi-api-ktdjm6xcyq-el.a.run.app/api/health> (`demoMode: false`) →
+  [`apps/api/Dockerfile`](apps/api/Dockerfile), [`apps/web/Dockerfile`](apps/web/Dockerfile),
+  [`cloudbuild-api.yaml`](cloudbuild-api.yaml), [`cloudbuild-web.yaml`](cloudbuild-web.yaml),
+  [`scripts/deploy.ps1`](scripts/deploy.ps1).
+- Cloud Build + Artifact Registry (`implemented`) — server-side build/push/deploy
+  pipelines and regional image storage → the two cloudbuild yamls above.
+- Cloud Logging (`implemented`) — the live API streams structured JSON lines →
   [`apps/api/src/middleware/logger.ts`](apps/api/src/middleware/logger.ts).
-- Firebase Auth / Firestore / Hosting, GA4, Secret Manager (`planned` / `ready-with-key`)
-  with concrete seams already in code →
+- Secret Manager (`implemented`) — the Gemini key mounts by reference with
+  least-privilege accessor IAM → [`scripts/deploy.ps1`](scripts/deploy.ps1).
+- Firebase Auth / Firestore / Hosting (`planned`), GA4 + Maps (`ready-with-key`) with
+  concrete seams already in code →
   [`apps/api/src/services/store.ts`](apps/api/src/services/store.ts) (UserStore interface),
-  [`.env.example`](.env.example), [`tasks.md`](tasks.md) Phases 6–7 and 11.
+  [`.env.example`](.env.example), [`tasks.md`](tasks.md) Phase 7.
 
 ---
 

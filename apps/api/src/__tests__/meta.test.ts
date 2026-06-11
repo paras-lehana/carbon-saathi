@@ -5,6 +5,7 @@
  */
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
+import { APP_VERSION } from '../config';
 import { testApp } from './helpers';
 
 describe('GET /api/health', () => {
@@ -12,7 +13,8 @@ describe('GET /api/health', () => {
     const res = await request(testApp()).get('/api/health');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('ok');
-    expect(res.body.version).toBe('0.1.0');
+    // Pinned to the package.json-derived constant — a bump can't desync it.
+    expect(res.body.version).toBe(APP_VERSION);
     expect(typeof res.body.uptimeSec).toBe('number');
     expect(res.body.demoMode).toBe(true);
   });
@@ -54,15 +56,16 @@ describe('GET /api/actions/catalog', () => {
 });
 
 describe('GET /api/google/services', () => {
-  it('lists at least 10 services with the expected status summary', async () => {
+  it('lists at least 12 services with the expected status summary', async () => {
     const res = await request(testApp()).get('/api/google/services');
     expect(res.status).toBe(200);
-    expect(res.body.services.length).toBeGreaterThanOrEqual(10);
+    expect(res.body.services.length).toBeGreaterThanOrEqual(12);
+    // Exact counts mirror core's service-catalog.test.ts honesty pin.
     expect(res.body.summary).toEqual({
-      implemented: 3,
+      implemented: 6,
       readyWithKey: 3,
-      planned: 4,
-      total: 10,
+      planned: 3,
+      total: 12,
     });
   });
 

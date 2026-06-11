@@ -1,45 +1,54 @@
 /**
- * POST /api/pledge — set a daily commitment to log a specific action.
- * One pledge per (userId, date) pair; replaces on retry. On completion,
- * the action log endpoint applies a 1.2× bonus and marks bonusApplied.
+ * Daily pledge endpoint: records which single action the user commits to
+ * today (IST). Re-pledging replaces the previous pledge. This route owns
+ * pledge creation only — the action-log route detects completion and applies
+ * the 1.2× bonus, flipping bonusApplied exactly once.
  */
-import { appError, getActionById, pledgeRequestSchema } from '@carbon-saathi/core';
+import {
+  appError,
+  getActionById,
+  pledgeRequestSchema,
+  type DailyPledge,
+  type PledgeRequest,
+  type UserState,
+} from '@carbon-saathi/core';
 import { Router } from 'express';
+import { asyncHandler, parsedBody, sendError, validateBody } from '../middleware/validate';
 import type { UserStore } from '../services/store';
-import { asyncHandler, sendError, validateBody } from '../middleware/validate';
+import { istDayISO } from '../services/time';
 
-export function createPledgeRouter(store: UserStore) {
+export function createPledgeRouter(store: UserStore, now: () => number): Router {
   const router = Router();
-
   router.post(
     '/',
     validateBody(pledgeRequestSchema),
     asyncHandler(async (_req, res) => {
-      const { userId, actionId } = res.locals.body;
-
+      const { userId, actionId } = parsedBody<PledgeRequest>(res);
       const user = await store.getUser(userId);
-      if (!user) {
-        return sendError(res, appError('NOT_FOUND', 'User not found'));
+      if (user === undefined) {
+        sendError(res, appError('NOT_FOUND', 'Unknown userId — bootstrap first.'));
+        return;
       }
-
-      // Validate action exists.
-      if (!getActionById(actionId)) {
-        return sendError(res, appError('NOT_FOUND', `Action ${actionId} not found`));
+      if (getActionById(actionId) === undefined) {
+        // Same contract as the log route: a bad actionId is a defective
+        // payload, not a missing resource — and never reflected back.
+        sendError(res, appError('VALIDATION_FAILED', 'Unknown actionId.'));
+        return;
       }
-
-      const today = new Date().toISOString().slice(0, 10);
-      const pledge = {
+      const pledge: DailyPledge = {
         actionId,
-        dateISO: today,
+        dateISO: istDayISO(now()),
         bonusApplied: false,
       };
-
-      user.gamification.pledge = pledge;
-      await store.saveUser(user);
-
-      res.json({ ok: true, pledge });
+      // New object via spread: the in-memory store hands out live references,
+      // and the Firestore store will hand out snapshots — never mutate either.
+      const updated: UserState = {
+        ...user,
+        gamification: { ...user.gamification, pledge },
+      };
+      await store.saveUser(updated);
+      res.json({ pledge });
     }),
   );
-
   return router;
 }

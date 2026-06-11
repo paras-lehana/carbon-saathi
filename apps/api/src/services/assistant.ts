@@ -40,7 +40,10 @@ function firstNumberInRange(text: string, min: number, max: number): number | un
   return undefined;
 }
 
-function suryaGharBundle(message: string, user: UserState | undefined): GroundingBundle | undefined {
+function suryaGharBundle(
+  message: string,
+  user: UserState | undefined,
+): GroundingBundle | undefined {
   // 300 units/month is a typical urban 2-3 BHK with AC use — a sensible demo
   // default when neither the message nor the user's survey carries a figure.
   const units =
@@ -176,7 +179,10 @@ function buildGrounding(message: string, user: UserState | undefined): Grounding
   return baselineBundle(user);
 }
 
-function buildSystemPrompt(calculatorData: Record<string, unknown>, user: UserState | undefined): string {
+function buildSystemPrompt(
+  calculatorData: Record<string, unknown>,
+  user: UserState | undefined,
+): string {
   // The model is told to trust only this block for numbers — the single most
   // effective guard against hallucinated subsidies or emission factors.
   const verified: Record<string, unknown> = { ...calculatorData };
@@ -205,8 +211,7 @@ export async function answerAssistantQuery(
   deps: AssistantDeps,
   request: AssistantQueryRequest,
 ): Promise<AssistantAnswer> {
-  const user =
-    request.userId !== undefined ? await deps.store.getUser(request.userId) : undefined;
+  const user = request.userId !== undefined ? await deps.store.getUser(request.userId) : undefined;
   const bundle = buildGrounding(request.message, user);
   const grounding = {
     usedBaseline: user?.baseline !== undefined,

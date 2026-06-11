@@ -1,15 +1,19 @@
 /**
- * Daily pledge selector. User picks one action to commit to today. After
- * setting a pledge the card shows the commitment with a 1.2× bonus reminder.
- * Calls POST /api/pledge with userId + actionId.
+ * Daily pledge card: pick one action to commit to today for a 1.2× points
+ * bonus (applied server-side at log time). Renders from the prop — the
+ * dashboard refetch is the source of truth — keeping only the just-submitted
+ * pledge as optimistic state. Transport goes through lib/api-client.
  */
 'use client';
 
 import { useCallback, useState } from 'react';
 import { ACTION_CATALOG } from '@carbon-saathi/core';
 import type { DailyPledge } from '@carbon-saathi/core';
-import { GlassCard } from '../ui/GlassCard';
+import * as api from '../../lib/api-client';
 import { Button } from '../ui/Button';
+import { Field } from '../ui/Field';
+import { GlassCard } from '../ui/GlassCard';
+import { useToast } from '../ui/Toast';
 
 interface DailyPledgeCardProps {
   userId: string;
@@ -17,95 +21,104 @@ interface DailyPledgeCardProps {
   onPledgeSet?: (pledge: DailyPledge) => void;
 }
 
-interface PledgeResponse {
-  ok: boolean;
-  pledge: DailyPledge;
-}
+// IST calendar date — matches the server's istDayISO convention so a pledge
+// set late evening does not look expired before midnight in India.
+const IST_DAY_FORMATTER = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
 
-export function DailyPledgeCard({ userId, currentPledge, onPledgeSet }: DailyPledgeCardProps): React.JSX.Element {
-  const [selectedId, setSelectedId] = useState<string>('');
+export function DailyPledgeCard({
+  userId,
+  currentPledge,
+  onPledgeSet,
+}: DailyPledgeCardProps): React.JSX.Element {
+  const [selectedId, setSelectedId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pledge, setPledge] = useState<DailyPledge | null>(currentPledge);
+  // Optimistic only until the parent refetches and the prop catches up.
+  const [submittedPledge, setSubmittedPledge] = useState<DailyPledge | null>(null);
+  const { showToast } = useToast();
 
-  const today = new Date().toISOString().slice(0, 10);
-  const activePledge = pledge?.dateISO === today ? pledge : null;
+  const today = IST_DAY_FORMATTER.format(new Date());
+  const effectivePledge = submittedPledge ?? currentPledge;
+  const activePledge = effectivePledge?.dateISO === today ? effectivePledge : null;
 
   const submit = useCallback(async () => {
-    if (!selectedId) return;
+    if (selectedId === '') return;
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch('/api/pledge', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ userId, actionId: selectedId }),
-      });
-      if (!res.ok) {
-        setError('Could not set pledge. Try again.');
-        return;
-      }
-      const data = (await res.json()) as PledgeResponse;
-      setPledge(data.pledge);
-      onPledgeSet?.(data.pledge);
-    } catch {
-      setError('Network error. Please retry.');
-    } finally {
+    const result = await api.setPledge({ userId, actionId: selectedId });
+    if (!result.ok) {
+      setError(result.error.message);
       setLoading(false);
+      return;
     }
-  }, [selectedId, userId, onPledgeSet]);
+    setSubmittedPledge(result.data.pledge);
+    const label = ACTION_CATALOG.find((action) => action.id === result.data.pledge.actionId)?.label;
+    showToast(`Pledge set: ${label ?? result.data.pledge.actionId}`, 'success');
+    onPledgeSet?.(result.data.pledge);
+    setLoading(false);
+  }, [selectedId, userId, onPledgeSet, showToast]);
 
   const pledgedAction = activePledge
-    ? ACTION_CATALOG.find((a) => a.id === activePledge.actionId)
-    : null;
+    ? ACTION_CATALOG.find((action) => action.id === activePledge.actionId)
+    : undefined;
 
-  if (activePledge && pledgedAction) {
+  if (activePledge && pledgedAction !== undefined) {
     return (
-      <GlassCard className="flex flex-col gap-2">
+      <GlassCard as="section" aria-labelledby="pledge-heading" className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-xl" aria-hidden="true">🤝</span>
-          <h3 className="font-display text-sm font-bold">Today&apos;s Pledge</h3>
+          <span className="text-xl" aria-hidden="true">
+            🤝
+          </span>
+          <h2 id="pledge-heading" className="m-0 font-display text-lg font-bold">
+            Today&apos;s pledge
+          </h2>
         </div>
-        <p className="text-sm font-semibold text-primary">{pledgedAction.label}</p>
-        <p className="text-xs text-ink-muted">
-          Complete this today to earn a{' '}
-          <strong className="text-accent">1.2× bonus</strong> on your points.
+        <p className="m-0 text-sm font-semibold text-primary">{pledgedAction.label}</p>
+        <p className="m-0 text-xs text-ink-muted">
+          {/* Plain strong — the amber accent token is ~2:1 on surface, decorative only. */}
+          Complete this today to earn a <strong className="text-ink">1.2× bonus</strong> on its
+          points.
         </p>
         {activePledge.bonusApplied && (
-          <p className="text-xs font-semibold text-success">✓ Bonus applied!</p>
+          <p className="m-0 text-xs font-semibold text-success">✓ Bonus applied!</p>
         )}
       </GlassCard>
     );
   }
 
   return (
-    <GlassCard className="flex flex-col gap-3">
+    <GlassCard as="section" aria-labelledby="pledge-heading" className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <span className="text-xl" aria-hidden="true">🤝</span>
-        <h3 className="font-display text-sm font-bold">Set Today&apos;s Pledge</h3>
+        <span className="text-xl" aria-hidden="true">
+          🤝
+        </span>
+        <h2 id="pledge-heading" className="m-0 font-display text-lg font-bold">
+          Set today&apos;s pledge
+        </h2>
       </div>
-      <p className="text-xs text-ink-muted">
+      <p className="m-0 text-xs text-ink-muted">
         Commit to one action today — complete it for a <strong>1.2× points bonus</strong>.
       </p>
-      <select
-        value={selectedId}
-        onChange={(e) => setSelectedId(e.target.value)}
-        className="rounded-lg border border-border bg-surface px-3 py-2 text-sm focus-visible:outline-primary"
-        aria-label="Choose an action to pledge"
-      >
-        <option value="">Choose an action…</option>
-        {ACTION_CATALOG.map((action) => (
-          <option key={action.id} value={action.id}>
-            {action.label} (+{action.co2SavedKg} kg CO₂)
-          </option>
-        ))}
-      </select>
-      {error !== null && <p className="text-xs text-error">{error}</p>}
-      <Button
-        size="sm"
-        onClick={() => void submit()}
-        disabled={!selectedId || loading}
-      >
+      <Field id="pledge-action" label="Choose an action to pledge">
+        <select
+          value={selectedId}
+          onChange={(event) => setSelectedId(event.target.value)}
+          className="rounded-control border border-line bg-surface px-3 py-2 text-sm focus-visible:outline-primary"
+        >
+          <option value="">Choose an action…</option>
+          {ACTION_CATALOG.map((action) => (
+            <option key={action.id} value={action.id}>
+              {action.label} (+{action.co2SavedKg} kg CO₂)
+            </option>
+          ))}
+        </select>
+      </Field>
+      {error !== null && (
+        <p role="alert" className="m-0 text-xs font-semibold text-error">
+          {error}
+        </p>
+      )}
+      <Button size="sm" onClick={() => void submit()} disabled={selectedId === '' || loading}>
         {loading ? 'Setting pledge…' : 'Pledge for today'}
       </Button>
     </GlassCard>

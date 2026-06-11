@@ -21,9 +21,7 @@ const geminiResponseSchema = z.object({
   candidates: z
     .array(
       z.object({
-        content: z
-          .object({ parts: z.array(z.object({ text: z.string().optional() })) })
-          .optional(),
+        content: z.object({ parts: z.array(z.object({ text: z.string().optional() })) }).optional(),
       }),
     )
     .optional(),
@@ -82,7 +80,9 @@ export function createGeminiClient(options: GeminiClientOptions): GeminiClient {
         if (!response.ok) {
           // Security: upstream bodies are not relayed — they may echo request
           // contents; the status code alone is enough for diagnostics.
-          return err(appError('UPSTREAM_FAILURE', `Gemini responded with HTTP ${response.status}.`));
+          return err(
+            appError('UPSTREAM_FAILURE', `Gemini responded with HTTP ${response.status}.`),
+          );
         }
         const parsed = geminiResponseSchema.safeParse(await response.json());
         const text = parsed.success

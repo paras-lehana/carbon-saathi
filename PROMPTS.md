@@ -324,6 +324,88 @@ ACCEPTANCE
 
 ---
 
+## Phase 6 — Live Google Activation
+
+```text
+Flip Carbon Saathi from demo mode to live Gemini.
+
+CONTEXT
+- The grounding pipeline and DEMO_MODE fallback are already shipped (Phase 2);
+  activation must not change a single calculator number.
+
+DO
+1. Wire GEMINI_API_KEY via the gitignored .env (process.loadEnvFile() — no dotenv dep).
+2. Default the model to gemini-2.5-flash: new AI Studio keys 429 on 2.0-flash. Note the
+   reason as a comment beside the default in config.ts.
+3. 2.5-class models spend thinking tokens before visible text — disable thinking
+   (thinkingBudget: 0) so the ≤180-word budget buys the user words, not chain-of-thought.
+4. DEMO_MODE semantics: presence of a key flips live automatically; DEMO_MODE stays an
+   explicit override in either direction. Keyless boots must stay demo-clean.
+
+ACCEPTANCE
+- /api/health reports demoMode: false with the key present; the chat badge flips to
+  `gemini`; removing the key degrades to demo with zero code change.
+```
+
+## Phase 6.5 — Instant Gamification (quiz · badges · pledge)
+
+```text
+A cold visitor must own a dashboard with a badge in under 60 seconds.
+
+DO — core (pure, tested)
+1. quick-quiz.ts: 5 questions (commute/AC/diet/flights/shopping), literal-union answer
+   types, exhaustive Record lookups (no runtime fallbacks), quizToSurvey() with
+   middle-of-road Delhi defaults, estimateFromQuiz() returning Result<{baseline,survey}>.
+2. badges.ts: 8-badge catalog + table-driven BADGE_RULES (one predicate per badge, one
+   loop, zero non-null assertions). evaluateBadges() returns only NEW badges — idempotent.
+3. gamification.ts: applyPledgeBonus() — 1.2× commitment bonus, rounded.
+
+DO — api
+4. POST /api/quiz/estimate (stateless, sync handler) and POST /api/pledge (replace-on-
+   retry, IST day stamp). Wire evaluateBadges into bootstrap (source:'quiz' → quiz-whiz,
+   baseline → pehla-kadam) and into the action-log route (first action, streaks, saver,
+   mission, pledge-keeper). Apply the pledge bonus exactly once (bonusApplied flips).
+5. Day boundaries in IST (istDayISO helper) — this is an India-only product; days must
+   not roll at 05:30.
+
+DO — web
+6. Landing QuizWidget above the fold (after the hero h1): focus-managed steps, polite
+   live-region announcements, estimate reveal, bootstrap carrying {baseline, survey,
+   source:'quiz'}. Dashboard BadgeWall (earned/locked, hints) + DailyPledgeCard
+   (labelled select via Field, role=alert errors). Badge-earned toasts on log.
+
+ACCEPTANCE
+- Quiz → estimate → dashboard shows Quiz Whiz earned; pledged action pays the bonus once
+  (integration-tested); all new modules have dedicated test files.
+```
+
+## Phase 11 — Cloud Run Deployment
+
+```text
+Ship both services to Cloud Run with one command and zero secrets in the repo.
+
+DO
+1. Multi-stage Dockerfiles (non-root USER, dev deps pruned); Next.js needs
+   output: 'standalone'. Build context = repo root (workspace manifests).
+2. cloudbuild-{api,web}.yaml: build → push (Artifact Registry, asia-south1) → deploy.
+   Region rationale in a comment: Mumbai is closest to the users this app serves.
+3. scripts/deploy.ps1: enable APIs, create the registry repo idempotently, run both
+   pipelines, store GEMINI_API_KEY in Secret Manager (versions add on re-run,
+   least-privilege accessor IAM, --update-secrets mount), wire the web origin into
+   ALLOWED_ORIGINS.
+4. GitHub Actions CI: type-check + full test pyramid + production build + e2e/a11y on
+   every push, contents:read token.
+
+ACCEPTANCE
+- Live URLs serve the app; /api/health shows demoMode:false; the key appears nowhere in
+  the repo, images, or plain env-var config; CI green.
+```
+
+> Note: Phase 2's prompt above pinned `gemini-2.0-flash`, which was current at writing —
+> Phase 6 bumped the default to `gemini-2.5-flash` (quota reality on new keys).
+
+---
+
 ## Why staged prompts (and not one mega-prompt)
 
 - **Verifiable increments.** Each phase ends in objective acceptance checks
@@ -338,5 +420,5 @@ ACCEPTANCE
   (implemented / ready-with-key / planned) is enforced at the prompt level, which is why
   the docs and the code agree.
 
-Phases 6–13 (live Google activation, Firebase persistence, Maps intelligence, PWA/i18n,
-Cloud deployment, farmer mode) follow the same prompt pattern — see [tasks.md](tasks.md).
+Remaining phases (Firebase persistence, Maps intelligence, PWA/i18n, farmer mode)
+follow the same prompt pattern — see [tasks.md](tasks.md).

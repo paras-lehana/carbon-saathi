@@ -10,7 +10,9 @@ import { METRO_COMMUTER_SURVEY, testApp } from './helpers';
 
 describe('POST /api/footprint/baseline', () => {
   it('computes the metro-commuter household exactly', async () => {
-    const res = await request(testApp()).post('/api/footprint/baseline').send(METRO_COMMUTER_SURVEY);
+    const res = await request(testApp())
+      .post('/api/footprint/baseline')
+      .send(METRO_COMMUTER_SURVEY);
     expect(res.status).toBe(200);
     const baseline = res.body.baseline;
     // (250×12×0.716 + 1×12×42.3) / 3 = 885.2 → 885
@@ -48,6 +50,59 @@ describe('users, actions and dashboard', () => {
     expect(res.body.displayName).toBe('Asha');
     expect(res.body.gamification.points).toBe(0);
     expect(res.body.gamification.streak.current).toBe(0);
+    expect(res.body.gamification.earnedBadges).toEqual([]);
+    expect(res.body.gamification.pledge).toBeNull();
+  });
+
+  it('awards quiz-whiz and pehla-kadam when bootstrap arrives from the quiz', async () => {
+    const baseline = await request(app).post('/api/footprint/baseline').send(METRO_COMMUTER_SURVEY);
+    const res = await request(app).post('/api/users/bootstrap').send({
+      displayName: 'Quizzer',
+      baseline: baseline.body.baseline,
+      survey: METRO_COMMUTER_SURVEY,
+      source: 'quiz',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.gamification.earnedBadges).toEqual(['quiz-whiz', 'pehla-kadam']);
+    expect(res.body.joinedVia).toBe('quiz');
+    // The survey persists so the assistant can ground on its numbers.
+    expect(res.body.survey.monthlyElectricityKwh).toBe(250);
+  });
+
+  it('awards only pehla-kadam for the survey path', async () => {
+    const baseline = await request(app).post('/api/footprint/baseline').send(METRO_COMMUTER_SURVEY);
+    const res = await request(app).post('/api/users/bootstrap').send({
+      baseline: baseline.body.baseline,
+      source: 'survey',
+    });
+    expect(res.body.gamification.earnedBadges).toEqual(['pehla-kadam']);
+  });
+
+  it('clamps restore payloads to what the submitted ledger supports', async () => {
+    // One curl must not mint a leaderboard topper: 999,999 claimed points
+    // against an 8-point ledger collapses to 8.
+    const res = await request(app)
+      .post('/api/users/bootstrap')
+      .send({
+        displayName: 'Minter',
+        gamification: {
+          points: 999_999,
+          totalCo2SavedKg: 50_000,
+          streak: { current: 1, longest: 1, shields: 0, lastLogDateISO: '2026-06-10' },
+          actionLog: [
+            {
+              actionId: 'veg-day',
+              quantity: 1,
+              co2SavedKg: 0.8,
+              points: 8,
+              loggedAtISO: '2026-06-10T08:00:00.000Z',
+            },
+          ],
+        },
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.gamification.points).toBe(8);
+    expect(res.body.gamification.totalCo2SavedKg).toBe(0.8);
   });
 
   it('restores an existing user instead of recreating it', async () => {
@@ -73,10 +128,16 @@ describe('users, actions and dashboard', () => {
     expect(log.body.gamification.streak.current).toBe(1);
     expect(log.body.todayLog).toHaveLength(1);
 
+    // First log earns pehli-jeet — full definition rides on the response.
+    expect(log.body.newBadges.map((badge: { id: string }) => badge.id)).toEqual(['pehli-jeet']);
+    expect(log.body.gamification.earnedBadges).toEqual(['pehli-jeet']);
+
     const dash = await request(app).get(`/api/dashboard/${user.body.userId}`);
     expect(dash.status).toBe(200);
     expect(dash.body.gamification.points).toBe(32);
     expect(dash.body.gamification.level.name).toBe('Seed');
+    expect(dash.body.gamification.earnedBadges).toEqual(['pehli-jeet']);
+    expect(dash.body.gamification.pledge).toBeNull();
     expect(dash.body.missions).toHaveLength(3);
     const carFree = dash.body.missions.find(
       (m: { missionId: string }) => m.missionId === 'car-free-commute-x3',

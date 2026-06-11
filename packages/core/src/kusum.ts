@@ -7,7 +7,12 @@
 import { EMISSION_FACTORS } from './emission-factors';
 import { appError, type AppError } from './errors';
 import { err, ok, type Result } from './result';
-import type { KusumComponentASuggestion, KusumInput, KusumResult, KusumSubsidyBreakdown } from './types';
+import type {
+  KusumComponentASuggestion,
+  KusumInput,
+  KusumResult,
+  KusumSubsidyBreakdown,
+} from './types';
 
 const PUMP_COST_PER_HP_INR = 60_000; // ₹3.0 lakh for a 5 HP standalone solar pump, scaled linearly per HP
 const DIESEL_LITRES_PER_YEAR = 720; // ≈1.2 L/hr × 600 pumping hours/yr (typical irrigation duty cycle)
@@ -41,7 +46,10 @@ export function adviseKusum(input: KusumInput): Result<KusumResult, AppError> {
   if (!Number.isFinite(input.pumpHp) || input.pumpHp < 1 || input.pumpHp > 10) {
     return err(appError('VALIDATION_FAILED', 'pumpHp must be between 1 and 10'));
   }
-  if (input.landAcres !== undefined && (!Number.isFinite(input.landAcres) || input.landAcres <= 0)) {
+  if (
+    input.landAcres !== undefined &&
+    (!Number.isFinite(input.landAcres) || input.landAcres <= 0)
+  ) {
     return err(appError('VALIDATION_FAILED', 'landAcres must be a positive number'));
   }
 
@@ -68,7 +76,11 @@ export function adviseKusum(input: KusumInput): Result<KusumResult, AppError> {
       : Math.round(dieselSavedLitresPerYear * DIESEL_KG_CO2_PER_LITRE);
 
   let componentASuggestion: KusumComponentASuggestion | undefined;
-  if (input.hasBarrenLand && input.landAcres !== undefined && input.landAcres >= MIN_COMPONENT_A_ACRES) {
+  if (
+    input.hasBarrenLand &&
+    input.landAcres !== undefined &&
+    input.landAcres >= MIN_COMPONENT_A_ACRES
+  ) {
     componentASuggestion = {
       component: 'A',
       landAcres: input.landAcres,

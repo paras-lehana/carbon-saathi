@@ -27,7 +27,11 @@ function round1(n: number): number {
 }
 
 export function calculateSuryaGhar(input: SuryaGharInput): Result<SuryaGharResult, AppError> {
-  if (!Number.isFinite(input.monthlyUnits) || input.monthlyUnits < 30 || input.monthlyUnits > 2000) {
+  if (
+    !Number.isFinite(input.monthlyUnits) ||
+    input.monthlyUnits < 30 ||
+    input.monthlyUnits > 2000
+  ) {
     return err(appError('VALIDATION_FAILED', 'monthlyUnits must be between 30 and 2000'));
   }
   if (input.roofAreaSqFt !== undefined && input.roofAreaSqFt < 80) {

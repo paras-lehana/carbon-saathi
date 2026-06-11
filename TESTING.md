@@ -8,16 +8,16 @@ in a unit test without mocking clocks or randomness.
 
 | Layer | Tooling | Lives in | What it proves | Run |
 |---|---|---|---|---|
-| Core unit | vitest | [`packages/core/src/__tests__/`](packages/core/src/__tests__) — one file per module | Calculator math: baseline categories, PM Surya Ghar subsidy bands (₹30k/₹60k/₹78k) and payback, KUSUM A/B/C routing + 30/30/40 split, EV-fit decision tree, commute per-mode CO₂/cost, gamification (levels, streak shields, missions), action caps, schema bounds, error taxonomy | `npm run test:core` |
-| API integration | vitest + supertest against `buildApp(config)` — no live port needed | [`apps/api/src/__tests__/`](apps/api/src/__tests__) | Route success shapes, `400 VALIDATION_FAILED` on bad bodies, `429 RATE_LIMITED` under flood, error envelope consistency, **secret-leak assertion** on `/api/google/services` (env values must never appear), assistant demo replies grounded in real calculator numbers | `npm run test:api` |
-| Web component | vitest + Testing Library + jsdom | `apps/web` (co-located test files) | ProgressRing/Stepper/GlassCard/Toast render + a11y attributes, `api-client` error paths (never throws raw), localStorage corruption recovery | `npm run test:web` |
-| E2E | Playwright (chromium), `webServer` boots api :8080 + web :3000 | [`e2e/`](e2e) — [`smoke.spec.ts`](e2e/smoke.spec.ts), [`journey.spec.ts`](e2e/journey.spec.ts), [`schemes.spec.ts`](e2e/schemes.spec.ts), [`assistant.spec.ts`](e2e/assistant.spec.ts) | Landing renders clean (filtered console), full onboarding → dashboard journey, action log raises points, 350 monthly units shows the ₹78,000 subsidy, assistant answers with numbers in demo mode | `npm run e2e` |
-| Accessibility | @axe-core/playwright | [`e2e/a11y.spec.ts`](e2e/a11y.spec.ts) | Zero serious/critical axe violations on all 10 routes (`/`, `/onboarding`, `/dashboard`, `/actions`, `/schemes`, `/ev-coach`, `/assistant`, `/leaderboard`, `/google-services`, `/about`) | `npm run a11y` |
+| Core unit | vitest | [`packages/core/src/__tests__/`](packages/core/src/__tests__) — one file per module | Calculator math: baseline categories, PM Surya Ghar subsidy bands (₹30k/₹60k/₹78k) and payback, KUSUM A/B/C routing + 30/30/40 split, EV-fit decision tree, commute per-mode CO₂/cost, gamification (levels, streak shields, missions, the 1.2× pledge bonus), badge award rules + idempotency, quiz answer mapping (incl. the no-AC → 0 hours pin), initiative catalog invariants, action caps, schema bounds + `.strict()` junk-key rejection, back-compat state backfill, error taxonomy | `npm run test:core` |
+| API integration | vitest + supertest against `buildApp(config)` — no live port needed | [`apps/api/src/__tests__/`](apps/api/src/__tests__) | Route success shapes, `400 VALIDATION_FAILED` on bad bodies, `429 RATE_LIMITED` under flood, error envelope consistency, **secret-leak assertion** on `/api/google/services` (env values must never appear), assistant demo replies grounded in real calculator numbers, quiz estimate determinism, the pledge → bonus-applied flow, badge awards at bootstrap and log time, restore clamping | `npm run test:api` |
+| Web component | vitest + Testing Library + jsdom | `apps/web` (co-located test files) | ProgressRing/Stepper/Tabs/Toast/Button render + a11y attributes, QuizWidget step flow + estimate fetch + failure path, DailyPledgeCard submit/error/stale-date branches, BadgeWall earned/locked semantics, `api-client` error paths (never throws raw), localStorage corruption recovery | `npm run test:web` |
+| E2E | Playwright (chromium), `webServer` boots api :8080 + web :3000 | [`e2e/`](e2e) — [`smoke.spec.ts`](e2e/smoke.spec.ts), [`journey.spec.ts`](e2e/journey.spec.ts), [`schemes.spec.ts`](e2e/schemes.spec.ts), [`assistant.spec.ts`](e2e/assistant.spec.ts) | Landing renders clean (filtered console), full onboarding → dashboard journey, the landing-quiz funnel through to the earned badge, initiatives filtering, action log raises points, 350 monthly units shows the ₹78,000 subsidy, assistant answers with numbers in demo mode | `npm run e2e` |
+| Accessibility | @axe-core/playwright | [`e2e/a11y.spec.ts`](e2e/a11y.spec.ts) | Zero serious/critical axe violations on all 11 routes (`/`, `/onboarding`, `/dashboard`, `/actions`, `/initiatives`, `/schemes`, `/ev-coach`, `/assistant`, `/leaderboard`, `/google-services`, `/about`) | `npm run a11y` |
 
-Aggregate: `npm test` runs core + API + web suites — currently **161 green tests**
-(98 core unit, 36 API integration, 27 web component). The Playwright layer adds **36
-more** (smoke, journeys, schemes, assistant, axe scans, screenshot capture) for **197
-total**. `npm run type-check` proves strict TS across all workspaces.
+Aggregate: `npm test` runs core + API + web suites — currently **224 green tests**
+(130 core unit, 50 API integration, 44 web component). The Playwright layer adds
+**40+ more** (smoke, journeys, schemes, assistant, axe scans, screenshot capture).
+`npm run type-check` proves strict TS across all workspaces.
 
 ## Design choices that make tests honest
 
@@ -63,8 +63,10 @@ total**. `npm run type-check` proves strict TS across all workspaces.
   live-path behaviour (quota errors, expired keys) is a Phase 6 task ([tasks.md](tasks.md)).
 - **No load testing.** The token bucket is unit/integration tested, not benchmarked under
   realistic concurrency.
-- **Coverage is not gated.** Test count and breadth are tracked manually; no `--coverage`
-  threshold enforced in CI yet (CI itself is Phase 11).
+- **Coverage is not gated.** CI runs the full pyramid (type-check, all test suites, a
+  production build, then e2e + a11y) on every push —
+  [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — but no `--coverage`
+  percentage threshold is enforced yet.
 - **Single browser.** Playwright runs chromium only; firefox/webkit projects are a
   config-line away but unverified.
 - **Axe ≠ full WCAG.** Automated scans catch a minority of accessibility issues; manual

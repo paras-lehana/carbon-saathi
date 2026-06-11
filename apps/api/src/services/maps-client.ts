@@ -91,7 +91,9 @@ async function queryDistanceMatrix(
   }
 }
 
-export async function resolveDistanceKm(options: ResolveDistanceOptions): Promise<DistanceResolution> {
+export async function resolveDistanceKm(
+  options: ResolveDistanceOptions,
+): Promise<DistanceResolution> {
   if (options.distanceKm !== undefined) {
     // Client-supplied distance: trusted as an estimate, not a maps measurement.
     return { distanceKm: options.distanceKm, source: 'estimate' };

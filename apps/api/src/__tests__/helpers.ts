@@ -5,14 +5,15 @@
  */
 import type { BaselineSurveyInput } from '@carbon-saathi/core';
 import type { Express } from 'express';
-import type { AppConfig } from '../config';
+import { APP_VERSION, type AppConfig } from '../config';
 import { buildApp, type AppDeps } from '../server';
 
 export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     port: 0,
     nodeEnv: 'test',
-    version: '0.1.0',
+    // Single source of truth: tests must never pin a literal that can drift.
+    version: APP_VERSION,
     demoMode: true,
     geminiApiKey: undefined,
     geminiModel: 'gemini-2.0-flash',
@@ -25,10 +26,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   };
 }
 
-export function testApp(
-  configOverrides: Partial<AppConfig> = {},
-  deps: AppDeps = {},
-): Express {
+export function testApp(configOverrides: Partial<AppConfig> = {}, deps: AppDeps = {}): Express {
   return buildApp(testConfig(configOverrides), { logSink: () => undefined, ...deps });
 }
 

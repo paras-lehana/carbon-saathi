@@ -1,142 +1,192 @@
 /**
- * 30-second landing quiz. Visitor picks one answer per question, gets an
- * instant CO₂ estimate, earns the quiz-whiz badge, and lands on the dashboard
- * — all without a full survey. Calls /api/quiz/estimate then /api/users/bootstrap.
+ * 30-second landing quiz: one answer per question, instant CO₂ estimate, and
+ * a one-tap dashboard handoff. Transport goes through lib/api-client (typed,
+ * never throws); the quiz-whiz badge itself is awarded server-side when the
+ * bootstrap carries source: 'quiz'. Focus and live-region wiring make every
+ * step change audible to screen readers.
  */
 'use client';
 
-import { useCallback, useState } from 'react';
-import { QUIZ_QUESTIONS } from '@carbon-saathi/core';
-import type { QuizAnswers } from '@carbon-saathi/core';
-import { useProfile } from '../../lib/contexts';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { QUIZ_QUESTIONS } from '@carbon-saathi/core';
+import type { QuizAnswers, QuizQuestionId } from '@carbon-saathi/core';
+import * as api from '../../lib/api-client';
+import type { QuizEstimateResponse } from '../../lib/api-client';
+import { useProfile } from '../../lib/contexts';
 import { Button } from '../ui/Button';
+import { useToast } from '../ui/Toast';
 
-type PartialAnswers = Partial<QuizAnswers>;
+type PartialAnswers = Partial<Record<QuizQuestionId, string>>;
 
 const TOTAL = QUIZ_QUESTIONS.length;
-
-interface QuizEstimateResponse {
-  ok: true;
-  baseline: { totalAnnualKgCo2e: number };
-}
-
-async function fetchQuizEstimate(answers: QuizAnswers): Promise<number | null> {
-  try {
-    const res = await fetch('/api/quiz/estimate', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ answers }),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as QuizEstimateResponse;
-    return data.baseline?.totalAnnualKgCo2e ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export function QuizWidget(): React.JSX.Element {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<PartialAnswers>({});
-  const [co2, setCo2] = useState<number | null>(null);
+  const [estimate, setEstimate] = useState<QuizEstimateResponse | null>(null);
+  const [estimateFailed, setEstimateFailed] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { bootstrap, applyUserState } = useProfile();
+  const { applyUserState } = useProfile();
+  const { showToast } = useToast();
   const router = useRouter();
+  const promptRef = useRef<HTMLHeadingElement>(null);
+  const resultRef = useRef<HTMLHeadingElement>(null);
+  // Synchronous re-entry guard: `loading` state lands a render late, so a
+  // rapid double-click on the final option could fire the estimate twice.
+  const submittingRef = useRef(false);
 
-  const question = QUIZ_QUESTIONS[step];
   const done = step >= TOTAL;
+  const question = done ? null : QUIZ_QUESTIONS[step];
+
+  // Focus follows the flow: each new question's prompt, then the result
+  // heading — otherwise focus drops to <body> when the options unmount.
+  useEffect(() => {
+    if (done) {
+      resultRef.current?.focus();
+    } else if (step > 0) {
+      promptRef.current?.focus();
+    }
+  }, [step, done]);
+
+  const fetchEstimate = useCallback(
+    async (fullAnswers: QuizAnswers) => {
+      setLoading(true);
+      const result = await api.quizEstimate(fullAnswers);
+      if (result.ok) {
+        setEstimate(result.data);
+        setEstimateFailed(false);
+      } else {
+        setEstimateFailed(true);
+        showToast(result.error.message, 'error');
+      }
+      setStep(TOTAL);
+      setLoading(false);
+      submittingRef.current = false;
+    },
+    [showToast],
+  );
 
   const pick = useCallback(
-    async (optionId: string) => {
-      const updatedAnswers = { ...answers, [question.id]: optionId } as PartialAnswers;
+    (optionId: string) => {
+      if (question === null || submittingRef.current) return;
+      const updatedAnswers: PartialAnswers = { ...answers, [question.id]: optionId };
       setAnswers(updatedAnswers);
-
       if (step + 1 >= TOTAL) {
-        // Last question answered — fetch estimate then bootstrap
-        setLoading(true);
-        const fullAnswers = updatedAnswers as QuizAnswers;
-        const estimate = await fetchQuizEstimate(fullAnswers);
-        setCo2(estimate);
-        setStep(TOTAL);
-        setLoading(false);
+        submittingRef.current = true;
+        // All five keys are present once the last question is answered; the
+        // API re-validates the ids, so the cast is a typing convenience only.
+        void fetchEstimate(updatedAnswers as QuizAnswers);
       } else {
         setStep(step + 1);
       }
     },
-    [answers, question, step],
+    [answers, question, step, fetchEstimate],
   );
+
+  const retryEstimate = useCallback(() => {
+    void fetchEstimate(answers as QuizAnswers);
+  }, [answers, fetchEstimate]);
 
   const goToDashboard = useCallback(async () => {
     setLoading(true);
-    const user = await bootstrap();
-    if (user) applyUserState(user);
+    // Bootstrap carries the quiz result so the dashboard opens with a real
+    // baseline — and source: 'quiz' earns the badge server-side.
+    const result = await api.bootstrapUser({
+      baseline: estimate?.baseline,
+      survey: estimate?.survey,
+      source: 'quiz',
+    });
+    if (!result.ok) {
+      setLoading(false);
+      showToast(result.error.message, 'error');
+      return;
+    }
+    applyUserState(result.data);
     router.push('/dashboard');
-  }, [bootstrap, applyUserState, router]);
+  }, [estimate, applyUserState, router, showToast]);
 
   if (done) {
-    const tonnes = co2 !== null ? (co2 / 1000).toFixed(1) : null;
+    const tonnes = estimate !== null ? (estimate.baseline.totalKgAnnual / 1000).toFixed(1) : null;
     return (
-      <div className="flex flex-col items-center gap-4 text-center">
-        <span className="text-5xl">🎯</span>
-        <h3 className="font-display text-xl font-bold">Quiz done! You earned a badge 🧠</h3>
+      <div className="flex flex-col items-center gap-4 text-center" aria-live="polite">
+        <span className="text-5xl" aria-hidden="true">
+          🎯
+        </span>
+        <h3 ref={resultRef} tabIndex={-1} className="font-display text-xl font-bold outline-none">
+          Quiz done! Your Quiz Whiz badge is waiting 🧠
+        </h3>
         {tonnes !== null && (
           <p className="text-ink-muted">
             Your estimated footprint:{' '}
-            <strong className="text-primary text-2xl">{tonnes} t CO₂e/year</strong>
+            <strong className="text-2xl text-primary">{tonnes} t CO₂e/year</strong>
           </p>
+        )}
+        {estimateFailed && (
+          <div role="alert" className="flex flex-col items-center gap-2">
+            <p className="m-0 text-sm text-error">We could not compute your estimate.</p>
+            <Button size="sm" variant="ghost" onClick={retryEstimate} disabled={loading}>
+              Try the estimate again
+            </Button>
+          </div>
         )}
         <p className="text-sm text-ink-muted">
           India average is ~2 t. Let&apos;s see how yours breaks down and what to do about it.
         </p>
-        <Button size="lg" onClick={goToDashboard} disabled={loading}>
+        <Button size="lg" onClick={() => void goToDashboard()} disabled={loading}>
           {loading ? 'Opening dashboard…' : 'See my full dashboard →'}
         </Button>
       </div>
     );
   }
 
-  const progress = Math.round((step / TOTAL) * 100);
+  // question is non-null on every non-done render; the guard keeps TS honest.
+  if (question === null) return <></>;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Progress bar */}
       <div className="flex items-center gap-3">
         <div
           role="progressbar"
-          aria-valuenow={step + 1}
-          aria-valuemin={1}
+          aria-valuenow={step}
+          aria-valuemin={0}
           aria-valuemax={TOTAL}
-          aria-label={`Question ${step + 1} of ${TOTAL}`}
-          className="h-2 flex-1 overflow-hidden rounded-full bg-surface-alt"
+          aria-label="Quiz progress"
+          className="h-2 flex-1 overflow-hidden rounded-pill bg-surface-alt"
         >
           <div
-            className="h-full rounded-full bg-primary transition-all duration-300"
-            style={{ width: `${progress}%` }}
+            className="h-full rounded-pill bg-primary transition-all duration-300"
+            style={{ width: `${Math.round((step / TOTAL) * 100)}%` }}
           />
         </div>
-        <span className="text-xs text-ink-muted tabular-nums">
+        <span className="text-xs tabular-nums text-ink-muted">
           {step + 1}/{TOTAL}
         </span>
       </div>
 
-      <p className="font-display text-lg font-bold">{question.prompt}</p>
+      {/* Announce each question change; the heading also receives focus. */}
+      <p aria-live="polite" className="sr-only">
+        Question {step + 1} of {TOTAL}
+      </p>
+      <h3 ref={promptRef} tabIndex={-1} className="m-0 font-display text-lg font-bold outline-none">
+        {question.prompt}
+      </h3>
 
       <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label={question.prompt}>
-        {question.options.map((opt) => (
+        {question.options.map((option) => (
           <button
-            key={opt.id}
+            key={option.id}
             type="button"
-            onClick={() => void pick(opt.id)}
+            onClick={() => pick(option.id)}
             disabled={loading}
-            className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-left transition-all hover:border-primary hover:bg-primary-soft focus-visible:outline-primary"
+            className="flex items-center gap-3 rounded-control border border-line bg-surface px-4 py-3 text-left transition-all hover:border-primary hover:bg-primary-soft focus-visible:outline-primary"
           >
             <span className="text-2xl" aria-hidden="true">
-              {opt.emoji}
+              {option.emoji}
             </span>
             <span>
-              <span className="block font-semibold text-sm">{opt.label}</span>
-              <span className="block text-xs text-ink-muted">{opt.blurb}</span>
+              <span className="block text-sm font-semibold">{option.label}</span>
+              <span className="block text-xs text-ink-muted">{option.blurb}</span>
             </span>
           </button>
         ))}

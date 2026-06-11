@@ -31,3 +31,16 @@ export function formatInr(amount: number): string {
 export function formatNumber(value: number): string {
   return NUMBER_FORMATTER.format(Math.round(value));
 }
+
+/** Compact rupees for dense cards: "₹1.2L" above a lakh, "₹55k" above a thousand. */
+export function formatInrCompact(amount: number): string {
+  if (amount >= 100_000) return `₹${(amount / 100_000).toFixed(1)}L`;
+  if (amount >= 1000) return `₹${Math.round(amount / 1000)}k`;
+  return `₹${Math.round(amount)}`;
+}
+
+/** Compact mass without the CO₂e suffix for tight layouts: "1.1 t" / "320 kg". */
+export function formatKgCompact(kg: number): string {
+  if (Math.abs(kg) >= KG_PER_TONNE) return `${(kg / KG_PER_TONNE).toFixed(1)} t`;
+  return `${NUMBER_FORMATTER.format(Math.round(kg))} kg`;
+}

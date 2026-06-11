@@ -104,7 +104,11 @@ describe('calculateBaselineFootprint — SUV-class family', () => {
 
   it('bill-derived kWh matches an explicitly metered 600 kWh survey', () => {
     const metered = unwrap(
-      calculateBaselineFootprint({ ...suvFamily, monthlyBillInr: undefined, monthlyElectricityKwh: 600 }),
+      calculateBaselineFootprint({
+        ...suvFamily,
+        monthlyBillInr: undefined,
+        monthlyElectricityKwh: 600,
+      }),
     );
     expect(metered.byCategory.homeEnergy).toBe(baseline.byCategory.homeEnergy);
   });

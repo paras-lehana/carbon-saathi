@@ -73,7 +73,9 @@ export function calculateEvFit(input: EvFitInput): Result<EvFitResult, AppError>
     input.longTripsPerMonth < 0 ||
     input.longTripsPerMonth > 20
   ) {
-    return err(appError('VALIDATION_FAILED', 'longTripsPerMonth must be an integer between 0 and 20'));
+    return err(
+      appError('VALIDATION_FAILED', 'longTripsPerMonth must be an integer between 0 and 20'),
+    );
   }
 
   const hasCharging = input.hasHomeCharging || input.hasOfficeCharging;

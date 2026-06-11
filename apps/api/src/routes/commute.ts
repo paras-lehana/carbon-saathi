@@ -33,7 +33,11 @@ export function createCommuteRouter(config: AppConfig, fetchFn?: typeof fetch): 
         sendError(res, modes.error);
         return;
       }
-      res.json({ modes: modes.value, source: resolution.source, distanceKm: resolution.distanceKm });
+      res.json({
+        modes: modes.value,
+        source: resolution.source,
+        distanceKm: resolution.distanceKm,
+      });
     }),
   );
   return router;

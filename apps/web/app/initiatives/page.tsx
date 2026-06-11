@@ -1,122 +1,121 @@
 /**
- * Initiatives Hub: Mission LiFE's 7 official action themes displayed as a
- * category nav + card grid. Every card shows benefit, CO2 avoided, rupees
- * saved and a how-to-start step. Sourced claims from docs/research-claims.txt.
+ * Initiatives Hub: the Mission LiFE-mapped catalog as a filterable card grid.
+ * Pure presentation over core's INITIATIVE_CATALOG — filtering is the only
+ * client state (hence 'use client'); all content and numbers live in core
+ * with their sources. Filter pills use aria-pressed (filters over one grid,
+ * not tabs over panels) and changes are announced via a polite live region.
  */
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  allCategories,
   initiativesByCategory,
+  ALL_INITIATIVE_CATEGORIES,
   INITIATIVE_CATALOG,
   LIFE_THEMES,
   type InitiativeCategory,
 } from '@carbon-saathi/core';
 import { Button } from '../../components/ui/Button';
 import { GlassCard } from '../../components/ui/GlassCard';
+import { formatInrCompact, formatKgCompact } from '../../lib/format';
 
-function formatKg(kg?: number): string | null {
-  if (kg === undefined) return null;
-  if (kg >= 1000) return `${(kg / 1000).toFixed(1)} t`;
-  return `${kg} kg`;
-}
+// The catalog is static, so per-category counts never change — build once.
+const CATEGORY_COUNTS: ReadonlyMap<InitiativeCategory, number> = new Map(
+  ALL_INITIATIVE_CATEGORIES.map((category) => [category, initiativesByCategory(category).length]),
+);
 
-function formatRupees(r?: number): string | null {
-  if (r === undefined) return null;
-  if (r >= 100000) return `₹${(r / 100000).toFixed(1)}L`;
-  if (r >= 1000) return `₹${(r / 1000).toFixed(0)}k`;
-  return `₹${r}`;
+function pillClasses(active: boolean): string {
+  return [
+    'rounded-pill px-3 py-1.5 text-sm font-semibold transition-colors',
+    active ? 'bg-primary text-white' : 'bg-surface-alt text-ink hover:bg-primary-soft',
+  ].join(' ');
 }
 
 export default function InitiativesPage(): React.JSX.Element {
   const [activeCategory, setActiveCategory] = useState<InitiativeCategory | 'all'>('all');
 
-  const categories = allCategories();
-  const initiatives =
-    activeCategory === 'all' ? INITIATIVE_CATALOG : initiativesByCategory(activeCategory);
+  const initiatives = useMemo(
+    () =>
+      activeCategory === 'all' ? [...INITIATIVE_CATALOG] : initiativesByCategory(activeCategory),
+    [activeCategory],
+  );
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-          Mission LiFE — 7 themes
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Mission LiFE</p>
         <h1 className="mt-1 font-display text-[length:var(--text-2xl)] font-bold">
           India&apos;s Climate Action Hub
         </h1>
         <p className="mt-2 max-w-2xl text-ink-muted">
-          Every initiative below maps to one of <strong>Mission LiFE&apos;s 7 official themes</strong> —
-          the Government of India&apos;s framework for individual climate action. 7.3 crore Indians
-          have already pledged. Add your actions and earn points.
+          Every initiative below maps to a <strong>Mission LiFE theme</strong> — the Government of
+          India&apos;s framework for individual climate action (missionlife-moefcc.nic.in). Crores
+          of Indians have already pledged. Pick yours, then log the actions for points.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <a
             href="https://merilife.gov.in"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-pill bg-primary text-white px-3 py-1 text-xs font-semibold hover:opacity-90"
+            className="inline-flex items-center gap-1 rounded-pill bg-primary px-3 py-1 text-xs font-semibold text-white no-underline hover:opacity-90"
           >
-            🌿 Take the LiFE pledge at merilife.gov.in →
+            🌿 Take the LiFE pledge at merilife.gov.in
+            <span aria-hidden="true">→</span>
+            <span className="sr-only">(opens in new tab)</span>
           </a>
         </div>
       </div>
 
-      {/* Category tabs */}
+      {/* Filter pills — aria-pressed toggles over a single grid. */}
       <nav aria-label="Initiative categories" className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setActiveCategory('all')}
-          className={[
-            'rounded-pill px-3 py-1.5 text-sm font-semibold transition-colors',
-            activeCategory === 'all'
-              ? 'bg-primary text-white'
-              : 'bg-surface-alt text-ink hover:bg-primary-soft',
-          ].join(' ')}
+          className={pillClasses(activeCategory === 'all')}
           aria-pressed={activeCategory === 'all'}
         >
           All ({INITIATIVE_CATALOG.length})
         </button>
-        {categories.map((cat) => {
-          const theme = LIFE_THEMES[cat];
-          const count = initiativesByCategory(cat).length;
+        {ALL_INITIATIVE_CATEGORIES.map((category) => {
+          const theme = LIFE_THEMES[category];
           return (
             <button
-              key={cat}
+              key={category}
               type="button"
-              onClick={() => setActiveCategory(cat)}
-              className={[
-                'rounded-pill px-3 py-1.5 text-sm font-semibold transition-colors',
-                activeCategory === cat
-                  ? 'bg-primary text-white'
-                  : 'bg-surface-alt text-ink hover:bg-primary-soft',
-              ].join(' ')}
-              aria-pressed={activeCategory === cat}
+              onClick={() => setActiveCategory(category)}
+              className={pillClasses(activeCategory === category)}
+              aria-pressed={activeCategory === category}
             >
-              {theme.emoji} {theme.title} ({count})
+              {theme.emoji} {theme.title} ({CATEGORY_COUNTS.get(category)})
             </button>
           );
         })}
       </nav>
+      {/* Grid swaps are silent for screen readers without this announcement. */}
+      <p aria-live="polite" className="sr-only">
+        Showing {initiatives.length} initiatives
+      </p>
 
-      {/* Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {initiatives.map((initiative) => {
           const theme = LIFE_THEMES[initiative.category];
-          const co2Str = formatKg(initiative.co2AvoidedKgAnnual);
-          const rupeeStr = formatRupees(initiative.rupeesSavedAnnual);
+          const co2 =
+            initiative.co2AvoidedKgAnnual !== undefined
+              ? formatKgCompact(initiative.co2AvoidedKgAnnual)
+              : null;
+          const rupees =
+            initiative.rupeesSavedAnnual !== undefined
+              ? formatInrCompact(initiative.rupeesSavedAnnual)
+              : null;
           return (
             <GlassCard key={initiative.id} as="article" className="flex flex-col gap-3">
-              {/* Category tag */}
-              <div className="flex items-center gap-2">
-                <span
-                  className="rounded-pill bg-primary-soft px-2 py-0.5 text-[10px] font-semibold text-primary"
-                >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-pill bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary">
                   {theme.emoji} {theme.lifeTheme}
                 </span>
                 {initiative.scheme !== undefined && (
-                  <span className="rounded-pill bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
-                    {initiative.scheme.split(' ')[0]}
+                  <span className="rounded-pill bg-accent-soft px-2 py-0.5 text-xs font-semibold">
+                    {initiative.scheme.split(' (')[0]}
                   </span>
                 )}
               </div>
@@ -126,45 +125,48 @@ export default function InitiativesPage(): React.JSX.Element {
               </h2>
               <p className="m-0 text-xs text-ink-muted">{initiative.subtitle}</p>
 
-              {/* Benefit metrics */}
-              {(co2Str !== null || rupeeStr !== null) && (
-                <div className="flex flex-wrap gap-3">
-                  {co2Str !== null && (
+              {(co2 !== null || rupees !== null) && (
+                <div className="flex flex-wrap items-end gap-3">
+                  {co2 !== null && (
                     <div className="flex flex-col">
-                      <span className="font-display text-lg font-bold text-primary">{co2Str}</span>
-                      <span className="text-[10px] text-ink-muted">CO₂ avoided/yr</span>
+                      <span className="font-display text-lg font-bold text-primary">{co2}</span>
+                      <span className="text-xs text-ink-muted">
+                        CO₂ avoided/yr
+                        {initiative.scale === 'community' ? ' (community-scale)' : ''}
+                      </span>
                     </div>
                   )}
-                  {rupeeStr !== null && (
+                  {rupees !== null && (
                     <div className="flex flex-col">
-                      <span className="font-display text-lg font-bold text-accent">{rupeeStr}</span>
-                      <span className="text-[10px] text-ink-muted">saved/yr</span>
+                      {/* Ink, not amber: --accent is ~2:1 on surface — decorative only. */}
+                      <span className="font-display text-lg font-bold text-ink">{rupees}</span>
+                      <span className="text-xs text-ink-muted">
+                        saved/yr{initiative.scale === 'community' ? ' (community-scale)' : ''}
+                      </span>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Benefit blurb */}
               <p className="m-0 flex-1 text-xs text-ink">{initiative.benefit}</p>
 
-              {/* How to start */}
+              {/* Native disclosure — keyboard and SR support for free. */}
               <details className="text-xs">
                 <summary className="cursor-pointer font-semibold text-primary">
-                  How to start →
+                  How to start
                 </summary>
                 <p className="mt-2 text-ink-muted">{initiative.howToStart}</p>
               </details>
 
-              {/* Portal link */}
               {initiative.portalUrl !== undefined && (
                 <a
                   href={initiative.portalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs font-semibold text-primary hover:underline"
-                  aria-label={`Official portal for ${initiative.title} (opens in new tab)`}
                 >
-                  Official portal ↗
+                  Official portal <span aria-hidden="true">↗</span>
+                  <span className="sr-only">(opens in new tab)</span>
                 </a>
               )}
             </GlassCard>
@@ -172,14 +174,11 @@ export default function InitiativesPage(): React.JSX.Element {
         })}
       </div>
 
-      {/* Footer CTA */}
       <GlassCard className="flex flex-col items-center gap-4 py-8 text-center">
-        <h2 className="m-0 font-display text-xl font-bold">
-          Ready to act?
-        </h2>
+        <h2 className="m-0 font-display text-xl font-bold">Ready to act?</h2>
         <p className="m-0 max-w-md text-ink-muted">
-          Log your actions on the actions page to earn points, maintain streaks,
-          and climb the leaderboard.
+          Log your actions on the actions page to earn points, maintain streaks, and climb the
+          leaderboard.
         </p>
         <div className="flex gap-3">
           <Button href="/actions" size="sm">

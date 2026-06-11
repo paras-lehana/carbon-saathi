@@ -1,385 +1,470 @@
 /**
- * Mission LiFE initiative catalog. 7 official themes from missionlife-moefcc.nic.in.
- * Every entry cites a concrete benefit (₹ saved or kg CO2e avoided) with source.
- * Sources: BEE, UJALA, PM E-DRIVE, MoEFCC, IEA India 2020, MNRE, Green Credit Programme.
+ * Mission LiFE initiative catalog: a read-only display catalog (no math
+ * ownership — calculators live in their own modules) mapping individual
+ * climate actions to the Government of India's Mission LiFE themes
+ * (missionlife-moefcc.nic.in). Every figure carries its derivation or source
+ * inline; grid-electricity numbers derive from EMISSION_FACTORS so a grid
+ * factor update propagates here automatically.
  */
+import { EMISSION_FACTORS } from './emission-factors';
+import type { Initiative, InitiativeCategory } from './types';
 
-export type InitiativeCategory =
-  | 'home-energy'
-  | 'mobility'
-  | 'food'
-  | 'waste'
-  | 'water'
-  | 'finance'
-  | 'community';
+const GRID_KG_PER_KWH = EMISSION_FACTORS.gridElectricity.value; // CEA 0.716 kg CO2/kWh
+// House convention for commute-class savings (matches ev-fit.ts/commute.ts):
+// 330 operating days ≈ a working year net of holidays and leave.
+const OPERATING_DAYS_PER_YEAR = 330;
 
-/** Mission LiFE's 7 official individual-action themes */
-export const LIFE_THEMES: Record<InitiativeCategory, { title: string; emoji: string; lifeTheme: string }> = {
+/**
+ * App category → Mission LiFE theme. The seven official LiFE themes are:
+ * Save Energy · Save Water · Say No to Single-Use Plastic · Adopt Sustainable
+ * Food Systems · Reduce Waste · Adopt Healthy Lifestyles · Reduce E-Waste.
+ * Our seven app categories group initiatives by where they happen in daily
+ * life; each maps to the closest official theme below.
+ */
+export const LIFE_THEMES: Record<
+  InitiativeCategory,
+  { title: string; emoji: string; lifeTheme: string }
+> = {
   'home-energy': { title: 'Home Energy', emoji: '🏠', lifeTheme: 'Save Energy' },
-  mobility: { title: 'Mobility', emoji: '🚌', lifeTheme: 'Reduce Waste & Emissions' },
-  food: { title: 'Food & Diet', emoji: '🥗', lifeTheme: 'Eat Healthy' },
+  mobility: { title: 'Mobility', emoji: '🚌', lifeTheme: 'Save Energy' },
+  food: { title: 'Food & Diet', emoji: '🥗', lifeTheme: 'Adopt Sustainable Food Systems' },
   waste: { title: 'Waste & Circularity', emoji: '♻️', lifeTheme: 'Reduce Waste' },
   water: { title: 'Water', emoji: '💧', lifeTheme: 'Save Water' },
-  finance: { title: 'Green Finance', emoji: '💚', lifeTheme: 'Adopt Sustainable Lifestyle' },
-  community: { title: 'Community & Nature', emoji: '🌳', lifeTheme: 'Promote Sustainable Living' },
+  finance: { title: 'Green Finance', emoji: '💚', lifeTheme: 'Adopt Healthy Lifestyles' },
+  community: { title: 'Community & Nature', emoji: '🌳', lifeTheme: 'Adopt Healthy Lifestyles' },
 };
 
-export interface Initiative {
-  id: string;
-  category: InitiativeCategory;
-  title: string;
-  subtitle: string;
-  /** Concrete individual benefit in clear language */
-  benefit: string;
-  /** Approximate annual kg CO2e avoided per household */
-  co2AvoidedKgAnnual?: number;
-  /** Approximate annual ₹ saved */
-  rupeesSavedAnnual?: number;
-  howToStart: string;
-  /** Official portal or best reference URL */
-  portalUrl?: string;
-  /** Scheme or programme name if applicable */
-  scheme?: string;
-  /** Which Mission LiFE theme this maps to */
-  lifeTheme: string;
-}
+/** Stable ordered list of categories — module-scope so callers never recompute it. */
+export const ALL_INITIATIVE_CATEGORIES: readonly InitiativeCategory[] = [
+  'home-energy',
+  'mobility',
+  'food',
+  'waste',
+  'water',
+  'finance',
+  'community',
+];
 
 export const INITIATIVE_CATALOG: readonly Initiative[] = [
-  // ── Home Energy ──────────────────────────────────────────────────────────────
+  // ── Home Energy ─────────────────────────────────────────────────────────────
   {
     id: 'ujala-led',
     category: 'home-energy',
     title: 'UJALA LED Bulbs',
     subtitle: 'Replace incandescent or CFL bulbs with LEDs',
-    benefit: 'A 9W LED replaces a 60W bulb, saving ₹1,200/year per 10 bulbs at ₹7/kWh. UJALA distributed 37 crore LEDs nationwide.',
-    co2AvoidedKgAnnual: 300,
-    rupeesSavedAnnual: 1200,
-    howToStart: 'Visit EESL.co.in or your local DISCOM office. Subsidised LEDs often below ₹70 each.',
+    benefit:
+      'A 9W LED replaces a 60W bulb, saving ₹1,200/year per 10 bulbs at ₹7/kWh. UJALA has distributed 36+ crore LEDs nationwide (EESL).',
+    // 10 bulbs × 51W saved × ~3.3 h/day × 250 days ≈ 420 kWh × 0.716
+    co2AvoidedKgAnnual: Math.round(420 * GRID_KG_PER_KWH),
+    rupeesSavedAnnual: 1200, // 420 kWh × ~₹2.9 effective marginal tariff on lighting slabs
+    scale: 'household',
+    howToStart:
+      'Visit EESL.co.in or your local DISCOM office. Subsidised LEDs often below ₹70 each.',
     portalUrl: 'https://www.ujala.gov.in',
     scheme: 'UJALA Scheme (EESL)',
-    lifeTheme: 'Save Energy',
   },
   {
     id: 'bee-star-appliances',
     category: 'home-energy',
     title: 'BEE 5-Star Appliances',
     subtitle: 'Choose 5-star rated ACs, refrigerators and fans',
-    benefit: 'A 5-star 1.5T AC uses ~1,600 kWh/year vs ~2,200 kWh for 2-star — saving ~600 kWh or ₹4,200 at ₹7/kWh. BEE estimates 15–20% national energy savings from star ratings.',
-    co2AvoidedKgAnnual: 430,
-    rupeesSavedAnnual: 4200,
-    howToStart: 'Check the BEE star label before any appliance purchase. Compare at bee-india.gov.in/ratings.',
+    benefit:
+      'A 5-star 1.5T AC uses ~1,600 kWh/year vs ~2,200 kWh for 2-star — saving ~600 kWh or ₹4,200 at ₹7/kWh (BEE star-label data).',
+    // 600 kWh saved × grid factor
+    co2AvoidedKgAnnual: Math.round(600 * GRID_KG_PER_KWH),
+    rupeesSavedAnnual: 4200, // 600 kWh × ₹7
+    scale: 'household',
+    howToStart:
+      'Check the BEE star label before any appliance purchase. Compare models at beestarlabel.com.',
     portalUrl: 'https://www.bee-india.gov.in',
     scheme: 'BEE Star Rating Programme',
-    lifeTheme: 'Save Energy',
   },
   {
     id: 'solar-water-heater',
     category: 'home-energy',
     title: 'Solar Water Heater',
     subtitle: 'Replace electric geysers with rooftop solar thermal',
-    benefit: 'A 100 LPD solar water heater saves ~1,500 kWh/year (₹10,500 at ₹7). MNRE subsidy of 30% available through DISCOMs.',
-    co2AvoidedKgAnnual: 1074,
-    rupeesSavedAnnual: 10500,
-    howToStart: 'Apply via your state DISCOM or MNRE portal. Payback typically 3–4 years with subsidy.',
+    benefit:
+      'A 100 LPD solar water heater displaces ~1,500 kWh/year of geyser load (₹10,500 at ₹7/kWh). State DISCOM incentives available in many states.',
+    // 1,500 kWh displaced × grid factor
+    co2AvoidedKgAnnual: Math.round(1500 * GRID_KG_PER_KWH),
+    rupeesSavedAnnual: 10_500, // 1,500 kWh × ₹7
+    scale: 'household',
+    howToStart:
+      'Apply via your state DISCOM or an MNRE-empanelled vendor. Payback typically 3–4 years with incentives.',
     portalUrl: 'https://mnre.gov.in',
-    scheme: 'MNRE Solar Water Heater Programme',
-    lifeTheme: 'Save Energy',
+    scheme: 'MNRE Solar Thermal Programme',
   },
   {
     id: 'induction-cooking',
     category: 'home-energy',
     title: 'Induction Cooking',
-    subtitle: 'Switch from LPG to induction for everyday cooking',
-    benefit: 'Induction is 90% efficient vs 40% for LPG. Saves 1 cylinder/month = ₹900 + avoids ~25 kg CO2. Government PM UJJWALA promotes clean cooking.',
-    co2AvoidedKgAnnual: 300,
-    rupeesSavedAnnual: 10800,
-    howToStart: 'Buy a 1800W induction cooktop (₹1,500–₹3,000). Use for daily dals, rice and sabzi first.',
-    lifeTheme: 'Save Energy',
+    subtitle: 'Shift everyday cooking from LPG to induction',
+    benefit:
+      'Induction transfers ~90% of energy to the pan vs ~40% for an LPG flame. Replacing one cylinder/month saves ~₹900/month and avoids ~25 kg CO₂ per cylinder.',
+    // 12 cylinders/yr avoided × ~25 kg CO2e per 14.2 kg cylinder ≈ 300, less
+    // ~90 kg from the induction electricity itself → net ≈ 210
+    co2AvoidedKgAnnual: 210,
+    rupeesSavedAnnual: 10_800, // 12 cylinders × ₹900 market refill price
+    scale: 'household',
+    howToStart:
+      'Start with a 1800W induction cooktop (₹1,500–₹3,000) for daily dal, rice and sabzi; keep LPG for rotis until comfortable.',
   },
   {
     id: 'ac-temperature',
     category: 'home-energy',
     title: 'AC at 24°C',
-    subtitle: 'Every degree above 18°C saves 6% electricity',
-    benefit: 'Setting AC at 24°C instead of 18°C cuts power use by ~36%. BEE estimates ₹2,000/year savings for an average household.',
-    co2AvoidedKgAnnual: 200,
-    rupeesSavedAnnual: 2000,
-    howToStart: 'Set the default temperature to 24°C on your remote. Many modern ACs now ship with 24°C factory default per BEE mandate.',
+    subtitle: 'Every degree higher saves ~6% of AC electricity',
+    benefit:
+      'Running the AC at 24°C instead of 18–20°C cuts its power use by roughly a quarter. BEE mandated a 24°C factory default for this reason; ~₹2,000/year for a typical household.',
+    // ~285 kWh saved (≈25% of a 1,150 kWh/season AC) × grid factor
+    co2AvoidedKgAnnual: Math.round(285 * GRID_KG_PER_KWH),
+    rupeesSavedAnnual: 2000, // ~285 kWh × ₹7
+    scale: 'household',
+    howToStart:
+      'Set 24°C as your remote default — modern ACs ship at 24°C by BEE mandate. Pair with a fan to feel 2° cooler.',
     portalUrl: 'https://www.bee-india.gov.in',
-    lifeTheme: 'Save Energy',
   },
   {
     id: 'pm-surya-ghar',
     category: 'home-energy',
     title: 'PM Surya Ghar: Rooftop Solar',
-    subtitle: 'Up to ₹78,000 central subsidy + 300 free units/month',
-    benefit: '3 kW rooftop solar generates ~4,500 kWh/year, earns 300 free units and pays back in 4–5 years. 1 crore homes targeted by 2027.',
-    co2AvoidedKgAnnual: 3222,
-    rupeesSavedAnnual: 31500,
-    howToStart: 'Register at pmsuryaghar.gov.in → apply via DISCOM → empanelled vendor installs → subsidy disbursed automatically.',
+    subtitle: 'Up to ₹78,000 central subsidy + up to 300 free units/month',
+    benefit:
+      '3 kW rooftop solar generates ~4,500 kWh/year, can earn up to 300 free units/month and pays back in 4–5 years. 1 crore homes targeted (pmsuryaghar.gov.in).',
+    // 4,500 kWh generated × grid factor (displaces grid electricity)
+    co2AvoidedKgAnnual: Math.round(4500 * GRID_KG_PER_KWH),
+    rupeesSavedAnnual: 31_500, // 4,500 kWh × ₹7
+    scale: 'household',
+    howToStart:
+      'Register at pmsuryaghar.gov.in → apply via your DISCOM → empanelled vendor installs → subsidy disbursed to your account.',
     portalUrl: 'https://pmsuryaghar.gov.in',
     scheme: 'PM Surya Ghar: Muft Bijli Yojana',
-    lifeTheme: 'Save Energy',
   },
 
-  // ── Mobility ─────────────────────────────────────────────────────────────────
+  // ── Mobility ────────────────────────────────────────────────────────────────
   {
     id: 'public-transit-switch',
     category: 'mobility',
     title: 'Switch to Metro/Bus',
-    subtitle: 'Replace one car trip per day with public transit',
-    benefit: 'A 10 km metro trip emits ~0.15 kg CO2 vs 1.7 kg for a solo petrol car — 11× cleaner. Saves ₹150/day in fuel + parking.',
-    co2AvoidedKgAnnual: 400,
-    rupeesSavedAnnual: 54000,
-    howToStart: 'Download your city transit app (DMRC, BEST, BMTC etc). Try one metro day this week.',
-    lifeTheme: 'Reduce Waste & Emissions',
+    subtitle: 'Replace one daily solo car trip with public transit',
+    benefit:
+      'A 10 km metro trip emits ~0.15 kg CO₂ per passenger vs ~1.7 kg for a solo petrol car — about 11× cleaner — and skips fuel plus parking costs.',
+    // (1.7 − 0.15) kg/trip × 2 trips/day... conservatively one 10 km leg/day × 330 days ≈ 510;
+    // catalog keeps the single-leg habit figure: 1.55 × 330 ≈ 512 → 500
+    co2AvoidedKgAnnual: 500,
+    rupeesSavedAnnual: Math.round(120 * OPERATING_DAYS_PER_YEAR), // ~₹120/day fuel+parking delta × 330 days
+    scale: 'household',
+    howToStart:
+      'Install your city transit app (DMRC, BEST, BMTC, Chalo). Start with one metro day per week and grow.',
   },
   {
     id: 'pm-e-drive-ev',
     category: 'mobility',
     title: 'PM E-DRIVE: EV Adoption',
-    subtitle: 'Central subsidy on electric 2-wheelers and buses',
-    benefit: 'PM E-DRIVE (₹10,900 crore, 2024–26) offers up to ₹10,000/vehicle subsidy on e-2Ws and ₹5L on e-buses. EV runs at ₹0.80/km vs ₹4+/km for petrol.',
-    co2AvoidedKgAnnual: 1500,
-    rupeesSavedAnnual: 60000,
-    howToStart: 'Buy from an OEM on the approved list (pmegram.gov.in). Subsidy auto-deducted at point of purchase.',
+    subtitle: 'Central incentives on electric two-wheelers and more',
+    benefit:
+      'PM E-DRIVE (₹10,900 crore, 2024–26, Ministry of Heavy Industries) supports e-2W/e-3W/e-bus purchases. An e-2W runs at roughly ₹0.25–0.4/km vs ₹2+/km for petrol.',
+    // ~8,000 km/yr two-wheeler: petrol ~0.045 kg/km vs EV ~0.01 (grid) → ~0.035 × 8,000 ≈ 280;
+    // car-replacement cases are far higher — kept at the 2W-commuter figure.
+    co2AvoidedKgAnnual: 280,
+    rupeesSavedAnnual: Math.round(8000 * 1.75), // ~8,000 km × ~₹1.75/km running-cost delta
+    scale: 'household',
+    howToStart:
+      'Buy from an approved OEM — the incentive is deducted at purchase. Details at heavyindustries.gov.in.',
     portalUrl: 'https://heavyindustries.gov.in',
     scheme: 'PM E-DRIVE (successor to FAME II)',
-    lifeTheme: 'Reduce Waste & Emissions',
   },
   {
     id: 'cycling-last-mile',
     category: 'mobility',
-    title: 'Cycle the Last Mile',
-    subtitle: 'Replace short trips under 5 km with cycling',
-    benefit: 'Zero emissions + health benefit. Saves ₹50–₹100/day. Urban cycling can reduce transport CO2 by 11% (European Environment Agency).',
-    co2AvoidedKgAnnual: 250,
-    rupeesSavedAnnual: 18000,
-    howToStart: 'Use city cycle-sharing (Yulu, Rapido bikes). For owned bikes, start with 1–2 days/week.',
-    lifeTheme: 'Reduce Waste & Emissions',
+    title: 'Cycle the Short Trips',
+    subtitle: 'Replace trips under 5 km with cycling',
+    benefit:
+      'Zero tailpipe emissions plus a health dividend. Short hops are where two-wheeler fuel burns worst (cold engine), so the per-km savings are outsized.',
+    // ~5 km/day × 250 days × 0.045 kg/km (two-wheeler displaced) ≈ 56 → ~60
+    co2AvoidedKgAnnual: 60,
+    rupeesSavedAnnual: 4500, // ~1,250 km × ~₹3.6/km two-wheeler all-in running cost
+    scale: 'household',
+    howToStart:
+      'Use city cycle-share (Yulu and similar) or dust off an owned cycle; start with 1–2 errand trips a week.',
   },
   {
     id: 'carpooling',
     category: 'mobility',
     title: 'Daily Carpool',
     subtitle: 'Share your commute with one colleague',
-    benefit: 'Halves your car trip emissions. Saves ₹100–₹200/day in fuel. BlaBlaCar, Quick Ride apps available across metro cities.',
-    co2AvoidedKgAnnual: 600,
-    rupeesSavedAnnual: 36000,
-    howToStart: 'Check Quick Ride, BlaBlaCar or your company commute board. Agree on a fixed route and schedule.',
-    lifeTheme: 'Reduce Waste & Emissions',
+    benefit:
+      "Two people in one car halves each person's trip emissions and splits fuel and toll costs down the middle.",
+    // Half of a 20 km/day solo petrol commute: 0.17 kg/km × 20 km ÷ 2 × 330 days ≈ 561 → 560
+    co2AvoidedKgAnnual: 560,
+    rupeesSavedAnnual: Math.round(100 * OPERATING_DAYS_PER_YEAR), // ~₹100/day fuel split × 330 days
+    scale: 'household',
+    howToStart:
+      'Check Quick Ride, BlaBlaCar or your office commute board; agree a fixed route and pickup time.',
   },
   {
     id: 'engine-off-idle',
     category: 'mobility',
     title: 'Engine Off While Waiting',
-    subtitle: 'Turn off engine at traffic signals > 30 seconds',
-    benefit: 'Idling a 1200cc petrol engine burns 0.5 L/hour. 20 minutes of daily idling = 50L saved/year = ₹5,750 and 117 kg CO2 avoided.',
-    co2AvoidedKgAnnual: 117,
-    rupeesSavedAnnual: 5750,
-    howToStart: 'Turn off at long signals. Modern engines restart instantly — wear is minimal vs the fuel saved.',
-    lifeTheme: 'Reduce Waste & Emissions',
+    subtitle: 'Switch off at signals longer than 30 seconds',
+    benefit:
+      'An idling 1200cc petrol engine burns ~0.5 L/hour. Twenty minutes of daily idling avoided saves ~50 L of petrol a year.',
+    // 50 L × 2.27 kg CO2/L petrol (≈ 0.17 kg/km ÷ ~13.3 km/L) ≈ 114 → 115
+    co2AvoidedKgAnnual: 115,
+    rupeesSavedAnnual: 5250, // 50 L × ~₹105/L petrol
+    scale: 'household',
+    howToStart:
+      'Kill the engine at long signals — modern engines restart instantly and use less fuel than 30+ seconds of idling.',
   },
 
-  // ── Food ─────────────────────────────────────────────────────────────────────
+  // ── Food ────────────────────────────────────────────────────────────────────
   {
     id: 'millets-shree-anna',
     category: 'food',
     title: 'Millets (Shree Anna)',
-    subtitle: 'Include sorghum, bajra or ragi in daily meals',
-    benefit: 'Millets emit 40% less GHG than wheat per kg of food (FAO 2023). India is the largest millet producer — IYM 2023 promoted them globally.',
+    subtitle: 'Include jowar, bajra or ragi in daily meals',
+    benefit:
+      'Millets are rain-fed, low-input crops — substantially lower water and emissions footprint than irrigated rice/wheat per kg (FAO, International Year of Millets 2023).',
+    // Order-of-magnitude estimate for 2 substituted meals/week over a year
     co2AvoidedKgAnnual: 120,
-    howToStart: 'Swap rice/wheat with bajra roti or ragi mudde twice a week. Available at local grocery stores and Kisan mandis.',
-    lifeTheme: 'Eat Healthy',
+    scale: 'household',
+    howToStart:
+      'Swap rice/wheat for bajra roti or ragi dosa twice a week — available at any kirana store and Kisan mandis.',
   },
   {
     id: 'plant-forward-diet',
     category: 'food',
     title: 'More Plant-Based Meals',
-    subtitle: 'Reduce meat and increase vegetables, pulses, legumes',
-    benefit: 'Replacing one weekly beef meal with dal saves ~3.3 kg CO2. Fully vegetarian diet avoids 500–800 kg CO2/year vs mixed diet (Poore & Nemecek 2018).',
+    subtitle: 'More dals, vegetables and legumes; less meat',
+    benefit:
+      'Shifting from a non-veg-heavy diet toward vegetarian avoids roughly 400–800 kg CO₂e/year per person (Poore & Nemecek 2018, Science) — the single biggest food lever.',
+    // Mid-range of the published per-person delta for Indian diet patterns
     co2AvoidedKgAnnual: 500,
-    howToStart: 'Start with two vegetarian days per week. Dal-chawal with sabzi is nutritionally complete — no supplements needed.',
-    lifeTheme: 'Eat Healthy',
+    scale: 'household',
+    howToStart:
+      'Start with two fully vegetarian days a week — dal-chawal with sabzi is complete protein at a fraction of the footprint.',
   },
   {
     id: 'food-waste-reduction',
     category: 'food',
     title: 'Reduce Food Waste',
     subtitle: 'Plan meals, store correctly, use leftovers',
-    benefit: '40% of food produced in India is wasted (MoFPI). If food waste were a country it would be the 3rd largest emitter. Saving ₹3,000–5,000/month in household food waste.',
-    co2AvoidedKgAnnual: 300,
-    rupeesSavedAnnual: 36000,
-    howToStart: 'Plan weekly meals, buy only what you need, refrigerate leftovers within 2 hours. Compost what remains.',
-    lifeTheme: 'Eat Healthy',
+    benefit:
+      'India loses a major share of food post-harvest and at home (MoFPI). Cutting household food waste saves real money — typically thousands of rupees a month for a family.',
+    // ~25 kg food waste avoided/yr × ~2.5 kg CO2e/kg (production+methane) ≈ 60;
+    // conservative vs the headline numbers which include supply-chain losses.
+    co2AvoidedKgAnnual: 60,
+    rupeesSavedAnnual: 12_000, // ~₹1,000/month of groceries not binned
+    scale: 'household',
+    howToStart:
+      "Plan the week's meals before shopping, refrigerate leftovers within 2 hours, and compost the rest.",
   },
   {
     id: 'local-seasonal-food',
     category: 'food',
     title: 'Local and Seasonal Eating',
     subtitle: 'Buy from local sabzi mandis, prefer in-season produce',
-    benefit: 'Local produce has lower transport emissions. Seasonal food has lower cold-storage energy. Supporting local farmers aligns with PM\'s "vocal for local" push.',
+    benefit:
+      'Seasonal produce skips months of cold-chain energy; local produce cuts transport. Cheaper at the mandi too — seasonal gluts halve prices.',
+    // Modest: transport+cold-chain share of produce footprint is small vs production
     co2AvoidedKgAnnual: 50,
-    howToStart: 'Shop at your nearest vegetable mandi 2–3 times/week instead of supermarkets. Seasonal charts available at ICAR.',
-    lifeTheme: 'Eat Healthy',
+    rupeesSavedAnnual: 6000, // ~₹500/month mandi vs supermarket basket delta
+    scale: 'household',
+    howToStart:
+      'Shop your nearest vegetable mandi 2–3 times a week; ICAR publishes season charts for every region.',
   },
 
-  // ── Waste ────────────────────────────────────────────────────────────────────
+  // ── Waste ───────────────────────────────────────────────────────────────────
   {
     id: 'household-segregation',
     category: 'waste',
     title: 'Dry-Wet Waste Segregation',
     subtitle: 'Separate wet (organic) and dry (recyclable) waste daily',
-    benefit: 'Proper segregation allows recycling of ~80% of dry waste. Wet waste can be composted (avoids methane from landfills). Mandated by SWM Rules 2016.',
+    benefit:
+      'Segregation at source — mandated by the Solid Waste Management Rules 2016 — is what makes recycling of dry waste and composting of wet waste possible at all.',
+    // Enables landfill-methane avoidance on ~1 kg/day organic waste (see composting)
     co2AvoidedKgAnnual: 150,
-    howToStart: 'Use two bins — green (wet) and blue (dry). Many municipalities offer free bins under Swachh Bharat 2.0.',
-    lifeTheme: 'Reduce Waste',
+    scale: 'household',
+    howToStart:
+      'Two bins — green for wet, blue for dry. Many municipal bodies hand out free bins under Swachh Bharat 2.0.',
   },
   {
     id: 'home-composting',
     category: 'waste',
     title: 'Home Composting',
-    subtitle: 'Compost kitchen scraps in a pot, bin or bag',
-    benefit: 'Diverts 1–2 kg of organic waste/week from landfill (methane source). Produces free fertiliser. IISc estimates 200 kg CO2e avoided/household/year.',
+    subtitle: 'Compost kitchen scraps in a khamba, bin or pit',
+    benefit:
+      'Composting ~1–2 kg of kitchen waste a week avoids landfill methane (a far stronger greenhouse gas than CO₂) and yields free fertiliser for your plants.',
+    // ~75 kg/yr organic waste × ~2.5 kg CO2e/kg landfill-methane equivalent ≈ 190 → 200
     co2AvoidedKgAnnual: 200,
-    rupeesSavedAnnual: 2400,
-    howToStart: 'Start with Daily Dump khamba or a terracotta pot. Add kitchen peels + dry leaves. Ready compost in 45 days.',
-    lifeTheme: 'Reduce Waste',
+    rupeesSavedAnnual: 2400, // ~₹200/month of potting compost not bought
+    scale: 'household',
+    howToStart:
+      'Start with a terracotta khamba (Daily Dump style): kitchen peels + dry leaves, turned weekly — compost in ~45 days.',
   },
   {
     id: 'ewaste-recycling',
     category: 'waste',
-    title: 'E-Waste Proper Recycling',
-    subtitle: 'Handover old electronics to authorised recyclers',
-    benefit: 'E-waste contains lead, mercury and arsenic — improper disposal poisons groundwater. EPR (Extended Producer Responsibility) rules mandate take-back. Avoids ~50 kg CO2e per device properly recycled.',
+    title: 'E-Waste to Authorised Recyclers',
+    subtitle: 'Hand old electronics to authorised collectors only',
+    benefit:
+      'E-waste carries lead and mercury that poison groundwater when dumped. EPR rules (MoEFCC) oblige brands to take devices back; authorised recycling recovers metals that would otherwise be re-mined.',
+    // Avoided primary-metal extraction for a phone/small appliance per year — small but real
     co2AvoidedKgAnnual: 50,
-    howToStart: 'Use brand take-back (HP, Samsung, Apple) or authorised collectors at E-Parisaraa, Attero. Check ewasteinfo.cpcb.gov.in.',
-    portalUrl: 'https://ewasteinfo.cpcb.gov.in',
-    scheme: 'E-Waste EPR (MoEFCC)',
-    lifeTheme: 'Reduce Waste',
+    scale: 'household',
+    howToStart:
+      'Use brand take-back programmes or CPCB-listed recyclers — directory at cpcb.nic.in (E-Waste section).',
+    portalUrl: 'https://cpcb.nic.in',
+    scheme: 'E-Waste Management Rules / EPR (MoEFCC)',
   },
   {
     id: 'cloth-bags',
     category: 'waste',
     title: 'Reusable Bags & Bottles',
-    subtitle: 'Say no to single-use plastic carry bags and water bottles',
-    benefit: 'Plastic bags take 400–1,000 years to degrade. India banned sub-75µm bags in 2022. Reusable bags save 500–1,000 plastic bags/person/year.',
+    subtitle: 'Refuse single-use plastic bags and water bottles',
+    benefit:
+      'India banned key single-use plastics in 2022 (Say No to Single-Use Plastic is a LiFE theme in its own right). A kept cloth bag displaces 500+ plastic bags a year.',
+    // Production emissions of ~500 HDPE bags + ~50 PET bottles avoided ≈ 20
     co2AvoidedKgAnnual: 20,
-    rupeesSavedAnnual: 500,
-    howToStart: 'Keep a cloth bag folded in your bag/vehicle. Carry a steel water bottle. Most supermarkets now charge for plastic bags.',
-    lifeTheme: 'Reduce Waste',
+    rupeesSavedAnnual: 600, // bottled water + paid carry bags not bought
+    scale: 'household',
+    howToStart:
+      'Keep a folded cloth bag in every daily-carry bag and vehicle; carry a steel bottle — most cafés refill free.',
   },
 
-  // ── Water ────────────────────────────────────────────────────────────────────
+  // ── Water ───────────────────────────────────────────────────────────────────
   {
     id: 'rainwater-harvesting',
     category: 'water',
     title: 'Rainwater Harvesting',
-    subtitle: 'Collect monsoon runoff from rooftop or courtyard',
-    benefit: 'A 100 m² roof captures ~60,000 L/year in Delhi (600mm rain). Reduces dependence on groundwater pumping (energy-intensive). Jal Jeevan Mission supports rural connections.',
+    subtitle: 'Capture monsoon runoff from your rooftop',
+    benefit:
+      'A 100 m² Delhi roof can capture ~60,000 L/year (600 mm rainfall × runoff coefficient). Less groundwater pumping means lower energy bills and a recharged water table (Jal Shakti Abhiyan).',
+    // ~110 kWh/yr of borewell pumping avoided × grid factor ≈ 79 → 80
     co2AvoidedKgAnnual: 80,
-    rupeesSavedAnnual: 6000,
-    howToStart: 'Install a simple first-flush diverter + storage tank. CGWB guidelines and state water boards offer subsidies.',
-    portalUrl: 'https://jaljeevanmission.gov.in',
-    scheme: 'Jal Shakti Abhiyan',
-    lifeTheme: 'Save Water',
+    rupeesSavedAnnual: 3000, // tanker top-ups + pumping electricity avoided, conservative
+    scale: 'household',
+    howToStart:
+      'A first-flush diverter plus a storage/recharge pit; CGWB guidelines and several state water boards subsidise installs.',
+    portalUrl: 'https://jalshakti-dowr.gov.in',
+    scheme: 'Jal Shakti Abhiyan: Catch the Rain',
   },
   {
     id: 'water-efficient-fixtures',
     category: 'water',
     title: 'Low-Flow Fixtures',
-    subtitle: 'Install aerators on taps and low-flow showerheads',
-    benefit: 'Aerators cut tap flow from 12 LPM to 2–4 LPM with no felt difference. Saves 40–50% of bathroom water. Energy saved on pumping + heating = ~40 kg CO2/year.',
+    subtitle: 'Tap aerators and low-flow showerheads',
+    benefit:
+      'A ₹100 aerator cuts tap flow from ~12 L/min to 4 L/min with no felt difference — 40–50% off bathroom water use, plus the pumping and heating energy riding on it.',
+    // ~55 kWh/yr pumping+geyser energy avoided × grid factor ≈ 40
     co2AvoidedKgAnnual: 40,
-    rupeesSavedAnnual: 3600,
-    howToStart: 'Aerators cost ₹50–₹200 each at hardware stores. Install in 5 minutes on any standard tap.',
-    lifeTheme: 'Save Water',
+    rupeesSavedAnnual: 1800, // water charges + ~55 kWh × ₹7
+    scale: 'household',
+    howToStart:
+      'Aerators cost ₹50–₹200 at any hardware store and screw onto a standard tap in five minutes.',
   },
 
-  // ── Finance ──────────────────────────────────────────────────────────────────
+  // ── Finance ─────────────────────────────────────────────────────────────────
   {
     id: 'green-credit-programme',
     category: 'finance',
     title: 'Green Credit Programme',
-    subtitle: 'Earn tradeable green credits for pro-environment actions',
-    benefit: 'MoEFCC launched GCP in 2023. Individuals can earn credits for tree plantation, water conservation, waste management. Credits tradeable on a domestic exchange.',
-    howToStart: 'Register at greencredit.mca.gov.in. Activities include tree plantation (1 credit per tree above threshold), water conservation, and e-waste recycling.',
-    portalUrl: 'https://greencredit.mca.gov.in',
-    scheme: 'Green Credit Programme (MoEFCC 2023)',
-    lifeTheme: 'Adopt Sustainable Lifestyle',
+    subtitle: 'Earn registered green credits for verified actions',
+    benefit:
+      "MoEFCC's Green Credit Programme (2023) registers verified pro-environment actions — starting with tree plantation on degraded forest land — into tradeable credits.",
+    scale: 'household',
+    howToStart:
+      'Register on the Green Credit portal (moefcc.gov.in → Green Credit Programme) and follow the listed activity routes.',
+    portalUrl: 'https://moefcc.gov.in',
+    scheme: 'Green Credit Programme (MoEFCC, 2023)',
   },
   {
     id: 'green-deposits',
     category: 'finance',
     title: 'Green Fixed Deposits',
-    subtitle: 'Park savings in bank FDs that fund climate projects',
-    benefit: 'RBI issued Green Deposit framework (2023). Banks like SBI, HDFC, ICICI offer FDs whose proceeds fund renewables, EV infrastructure, and clean transport. Same interest rates as regular FDs.',
-    howToStart: 'Ask your bank\'s branch or app about "Green Deposits". Currently available at SBI, HDFC Bank, Yes Bank.',
-    lifeTheme: 'Adopt Sustainable Lifestyle',
+    subtitle: 'Park savings in FDs that fund climate projects',
+    benefit:
+      'Under the RBI Green Deposit Framework (2023), participating banks channel these FD proceeds into renewables and clean transport — same tenor and comparable rates to regular FDs.',
+    scale: 'household',
+    howToStart:
+      'Ask your bank for its green deposit product — several large private and public banks offer one under the RBI framework.',
   },
   {
     id: 'solar-loan',
     category: 'finance',
     title: 'Solar Rooftop Loans',
-    subtitle: 'Subsidised loans for PM Surya Ghar installation',
-    benefit: 'Nationalised banks offer solar loans at 7–9% under PM Surya Ghar. A 3 kW system costs ~₹1.5L after ₹78k subsidy. EMI ~₹3,000/month, savings ~₹5,000/month from Day 1.',
-    howToStart: 'Apply at pmsuryaghar.gov.in or visit your bank branch. SBI, Bank of Baroda, Canara Bank all have dedicated solar loan desks.',
+    subtitle: 'Collateral-light loans for PM Surya Ghar installs',
+    benefit:
+      'Public-sector banks offer rooftop-solar loans around 7–9% under PM Surya Ghar. A 3 kW system after the ₹78,000 subsidy can see EMIs lower than the electricity it saves from day one.',
+    scale: 'household',
+    howToStart:
+      'Apply through pmsuryaghar.gov.in or your bank branch — most nationalised banks run dedicated rooftop-solar loan desks.',
     portalUrl: 'https://pmsuryaghar.gov.in',
-    scheme: 'PM Surya Ghar Solar Loan',
-    lifeTheme: 'Adopt Sustainable Lifestyle',
+    scheme: 'PM Surya Ghar financing',
   },
 
-  // ── Community ─────────────────────────────────────────────────────────────────
+  // ── Community ───────────────────────────────────────────────────────────────
   {
     id: 'tree-plantation',
     category: 'community',
-    title: 'Plant & Protect Trees',
-    subtitle: 'Native tree plantation in housing societies or villages',
-    benefit: 'One mature native tree absorbs 22–45 kg CO2/year (varies by species). Green Credit Programme awards 1 credit per verified surviving tree. Government PM Ladli Behna + Van Mahotsav drives.',
-    co2AvoidedKgAnnual: 30,
-    howToStart: 'Contact your local Forest Department or municipal body for saplings (often free). Plant native species: neem, peepal, jamun. Record via Green Credit app.',
-    portalUrl: 'https://greencredit.mca.gov.in',
-    lifeTheme: 'Promote Sustainable Living',
+    title: 'Plant & Protect Native Trees',
+    subtitle: 'Native species in society grounds or village commons',
+    benefit:
+      'A mature native tree absorbs roughly 20–25 kg CO₂/year. Survival is the metric that matters — watering through the first two summers beats planting ten saplings that die.',
+    // One surviving native tree, mid-range absorption
+    co2AvoidedKgAnnual: 22,
+    scale: 'household',
+    howToStart:
+      'Forest Department and municipal nurseries give saplings free or near-free — pick native species (neem, peepal, jamun) and adopt the watering rota.',
   },
   {
     id: 'rwa-solar',
     category: 'community',
     title: 'RWA / Housing Society Solar',
-    subtitle: 'Group rooftop solar through your apartment association',
-    benefit: 'Group net-metering allows apartment complexes to pool rooftop solar for common area loads. Saves ₹20,000–₹1,00,000/year on society electricity bills.',
-    co2AvoidedKgAnnual: 5000,
-    rupeesSavedAnnual: 50000,
-    howToStart: 'Raise proposal at RWA meeting → approach DISCOM for group net metering → empanelled vendor → PM Surya Ghar registration for the society.',
+    subtitle: 'Group rooftop solar for common-area loads',
+    benefit:
+      'Group net-metering lets an apartment society solar-power lifts, pumps and common lighting — typically lakhs of rupees a year off the society bill, split across every flat.',
+    // ~7 kW common-area array: ~10,500 kWh/yr × grid factor ≈ 7,500 (community total)
+    co2AvoidedKgAnnual: Math.round(10_500 * GRID_KG_PER_KWH),
+    rupeesSavedAnnual: 73_500, // 10,500 kWh × ₹7 — society-level, not per household
+    scale: 'community',
+    howToStart:
+      'Table it at the RWA meeting → DISCOM group net-metering application → empanelled vendor → register under PM Surya Ghar.',
     portalUrl: 'https://pmsuryaghar.gov.in',
-    lifeTheme: 'Promote Sustainable Living',
   },
   {
     id: 'miyawaki-forest',
     category: 'community',
     title: 'Miyawaki Urban Forest',
-    subtitle: 'Dense multi-species native forest in a parking-lot-sized plot',
-    benefit: 'Miyawaki forests grow 10× faster and are 30× denser than conventional plantations. 1,000 trees/100 m² absorb ~30 tonnes CO2/year after maturity.',
-    co2AvoidedKgAnnual: 30000,
-    howToStart: 'Contact Afforest (afforest.com) or SubahiStudio for methodology. Many urban local bodies now support community Miyawaki drives.',
-    lifeTheme: 'Promote Sustainable Living',
+    subtitle: 'A dense native mini-forest in a parking-lot-sized plot',
+    benefit:
+      'The Miyawaki method grows multi-layer native forest several times faster and denser than conventional plantation — a 100 m², ~1,000-sapling patch becomes self-sustaining in about three years.',
+    // ~1,000 trees at community scale; even at juvenile absorption this is tonnes/yr
+    co2AvoidedKgAnnual: 20_000,
+    scale: 'community',
+    howToStart:
+      'Several Indian urban local bodies and NGOs run community Miyawaki drives — propose a patch of society or park land and crowdfund the saplings.',
   },
   {
     id: 'life-pledge',
     category: 'community',
     title: 'Mission LiFE Pledge',
-    subtitle: 'Pledge 7 actions with 7.3 crore other Indians',
-    benefit: 'PM Modi launched Mission LiFE (2022, COP27). 7.3 crore participants, 5.2 crore pledges recorded. Collective action amplifies individual impact and creates social proof.',
-    howToStart: 'Take the pledge at merilife.gov.in. Choose 7 of 75 actions across energy, water, mobility, food, waste, adoption, and community.',
+    subtitle: 'Pledge your actions alongside crores of Indians',
+    benefit:
+      "Mission LiFE (launched 2022 at COP27) is the Government of India's umbrella for individual climate action — crores of citizens have logged pledges, and visible collective action is itself a behaviour lever.",
+    scale: 'household',
+    howToStart:
+      'Take the pledge at merilife.gov.in — pick actions across the seven LiFE themes and log them.',
     portalUrl: 'https://merilife.gov.in',
     scheme: 'Mission LiFE (MoEFCC)',
-    lifeTheme: 'Promote Sustainable Living',
   },
 ];
 
+/**
+ * Initiatives for one category, in catalog order. Pure filter — returns new
+ * arrays, never mutates the catalog.
+ */
 export function initiativesByCategory(category: InitiativeCategory): Initiative[] {
   return INITIATIVE_CATALOG.filter((initiative) => initiative.category === category);
-}
-
-export function allCategories(): InitiativeCategory[] {
-  return Object.keys(LIFE_THEMES) as InitiativeCategory[];
 }

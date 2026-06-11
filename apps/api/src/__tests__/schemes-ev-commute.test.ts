@@ -9,7 +9,9 @@ import { testApp } from './helpers';
 
 describe('POST /api/schemes/surya-ghar', () => {
   it('hits the ₹78,000 cap band for a 350-unit household', async () => {
-    const res = await request(testApp()).post('/api/schemes/surya-ghar').send({ monthlyUnits: 350 });
+    const res = await request(testApp())
+      .post('/api/schemes/surya-ghar')
+      .send({ monthlyUnits: 350 });
     expect(res.status).toBe(200);
     const result = res.body.result;
     expect(result.recommendedKw).toBe(3);
@@ -21,7 +23,9 @@ describe('POST /api/schemes/surya-ghar', () => {
   });
 
   it('recommends 1 kW with ₹30,000 subsidy for a light user', async () => {
-    const res = await request(testApp()).post('/api/schemes/surya-ghar').send({ monthlyUnits: 100 });
+    const res = await request(testApp())
+      .post('/api/schemes/surya-ghar')
+      .send({ monthlyUnits: 100 });
     expect(res.status).toBe(200);
     expect(res.body.result.recommendedKw).toBe(1);
     expect(res.body.result.subsidyInr).toBe(30_000);

@@ -59,9 +59,11 @@ export function buildApp(config: AppConfig, deps: AppDeps = {}): Express {
 
   // Security: hide the framework fingerprint from scanners.
   app.disable('x-powered-by');
-  // Cloud Run fronts the container with a proxy; trusting X-Forwarded-For is
-  // required for per-IP rate limiting to see real client addresses there.
-  app.set('trust proxy', true);
+  // Cloud Run fronts the container with exactly ONE proxy hop. Trusting only
+  // that hop (1, not true) means req.ip comes from Google's front end — a
+  // blanket `true` would take the leftmost X-Forwarded-For entry, letting
+  // clients rotate spoofed addresses to mint fresh rate-limit buckets.
+  app.set('trust proxy', 1);
 
   app.use(
     helmet({
@@ -99,7 +101,7 @@ export function buildApp(config: AppConfig, deps: AppDeps = {}): Express {
   app.use('/api/users', createUsersRouter(store, now));
   app.use('/api/dashboard', createDashboardRouter(store, now));
   app.use('/api/quiz', createQuizRouter());
-  app.use('/api/pledge', createPledgeRouter(store));
+  app.use('/api/pledge', createPledgeRouter(store, now));
   app.use('/api/schemes', createSchemesRouter());
   app.use('/api/ev', createEvRouter());
   app.use('/api/commute', createCommuteRouter(config, deps.fetchFn));

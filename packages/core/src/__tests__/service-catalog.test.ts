@@ -6,9 +6,19 @@ import { describe, expect, it } from 'vitest';
 import { GOOGLE_SERVICES, getServiceSummary } from '../google/service-catalog';
 
 describe('GOOGLE_SERVICES', () => {
-  it('catalogs at least 10 integrations with unique ids', () => {
-    expect(GOOGLE_SERVICES.length).toBeGreaterThanOrEqual(10);
+  it('catalogs at least 12 integrations with unique ids', () => {
+    expect(GOOGLE_SERVICES.length).toBeGreaterThanOrEqual(12);
     expect(new Set(GOOGLE_SERVICES.map((s) => s.id)).size).toBe(GOOGLE_SERVICES.length);
+  });
+
+  it('cloud-run evidence names the live region (deployment is claim-checked)', () => {
+    const cloudRun = GOOGLE_SERVICES.find((s) => s.id === 'cloud-run');
+    expect(cloudRun?.status).toBe('implemented');
+    expect(
+      [cloudRun?.userValue, ...(cloudRun?.evidenceSignals ?? [])].some((text) =>
+        text?.includes('asia-south1'),
+      ),
+    ).toBe(true);
   });
 
   it('every entry documents value, fallback and evidence', () => {
@@ -32,11 +42,13 @@ describe('GOOGLE_SERVICES', () => {
 
 describe('getServiceSummary', () => {
   it('counts statuses across the catalog', () => {
+    // Exact counts on purpose: this pins the honesty contract — a status
+    // change must be a deliberate, reviewed edit here too.
     expect(getServiceSummary()).toEqual({
-      implemented: 3, // Gemini, Cloud Run, Cloud Logging
+      implemented: 6, // Gemini, Cloud Run, Cloud Build, Artifact Registry, Cloud Logging, Secret Manager
       readyWithKey: 3, // Distance Matrix, Maps JS, GA4
-      planned: 4, // Firebase Auth, Firestore, Hosting, Secret Manager
-      total: 10,
+      planned: 3, // Firebase Auth, Firestore, Hosting
+      total: 12,
     });
   });
 });

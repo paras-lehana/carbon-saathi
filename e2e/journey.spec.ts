@@ -163,6 +163,53 @@ test('onboarding wizard: five steps → baseline reveal → dashboard totals', a
   await expect(page.getByText(KG_PATTERN).first()).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
 });
 
+test('landing quiz: five answers → estimate → dashboard with the badge earned', async ({
+  page,
+}) => {
+  await gotoAndWait(page, '/');
+  const quizSection = page.locator('#quiz');
+  await expect(quizSection.getByRole('progressbar', { name: 'Quiz progress' })).toBeVisible({
+    timeout: COLD_START_TIMEOUT_MS,
+  });
+
+  // Answer all five questions by picking the first option each time — the
+  // option group re-renders per question, so re-query on every step.
+  for (let step = 0; step < 5; step++) {
+    const option = quizSection.locator('[role="group"] button').first();
+    await expect(option).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
+    await option.click();
+  }
+
+  // Result screen: the tonnes estimate is the quiz's whole payoff.
+  await expect(quizSection.getByText(/\d+(\.\d+)?\s*t\s*CO/)).toBeVisible({
+    timeout: COLD_START_TIMEOUT_MS,
+  });
+
+  await quizSection.getByRole('button', { name: /see my full dashboard/i }).click();
+  await page.waitForURL('**/dashboard', { timeout: COLD_START_TIMEOUT_MS });
+  await expect(page.getByTestId('dashboard-points')).toBeVisible({
+    timeout: COLD_START_TIMEOUT_MS,
+  });
+  // The quiz bootstrap awards quiz-whiz AND pehla-kadam server-side.
+  await expect(page.getByRole('button', { name: 'Quiz Whiz (earned)' })).toBeVisible({
+    timeout: COLD_START_TIMEOUT_MS,
+  });
+});
+
+test('initiatives hub: category filter narrows and restores the grid', async ({ page }) => {
+  await gotoAndWait(page, '/initiatives');
+  const allPill = page.getByRole('button', { name: /^All \(\d+\)$/ });
+  await expect(allPill).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
+  const totalCards = await page.getByRole('article').count();
+  expect(totalCards).toBeGreaterThanOrEqual(20);
+
+  await page.getByRole('button', { name: /Mobility/ }).click();
+  await expect.poll(() => page.getByRole('article').count()).toBeLessThan(totalCards);
+
+  await allPill.click();
+  await expect.poll(() => page.getByRole('article').count()).toBe(totalCards);
+});
+
 test('seeded fast path: quick action raises points and fires a toast', async ({ page }) => {
   // Each test gets a fresh browser context, so no onboarding state leaks in here.
   await seedViaDebug(page);

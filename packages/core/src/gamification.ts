@@ -17,12 +17,20 @@ import type {
 } from './types';
 
 const POINTS_PER_KG_CO2 = 10; // contract: 10 points per kg CO2e keeps points integral and legible
-const PLEDGE_BONUS_MULTIPLIER = 1.2; // 20% commitment bonus (research-backed behavior enforcement)
+// Product tuning value: a visible reward for keeping a self-set commitment
+// (the commitment-device effect) — 20% is large enough to notice, small
+// enough not to distort the points-per-kg contract.
+const PLEDGE_BONUS_MULTIPLIER = 1.2;
 
 export function pointsForCo2(kgCo2Saved: number): number {
   return Math.max(0, Math.round(kgCo2Saved * POINTS_PER_KG_CO2));
 }
 
+/**
+ * 1.2× bonus for completing today's pledged action, rounded to keep points
+ * integral. Applied by the API's action-log route exactly once per pledge
+ * (it flips pledge.bonusApplied after).
+ */
 export function applyPledgeBonus(points: number): number {
   return Math.round(points * PLEDGE_BONUS_MULTIPLIER);
 }
@@ -129,10 +137,16 @@ export const WEEKLY_MISSIONS: readonly Mission[] = [
   {
     id: 'car-free-commute-x3',
     title: 'Car-free commute ×3',
-    description: 'Take the metro, the bus, cycle/walk, or work from home for three commutes this week.',
+    description:
+      'Take the metro, the bus, cycle/walk, or work from home for three commutes this week.',
     metric: 'log-count',
     target: 3,
-    countedActionIds: ['metro-instead-of-car', 'bus-instead-of-car', 'cycle-or-walk-short', 'wfh-day'],
+    countedActionIds: [
+      'metro-instead-of-car',
+      'bus-instead-of-car',
+      'cycle-or-walk-short',
+      'wfh-day',
+    ],
   },
   {
     id: 'veg-days-x3',
@@ -192,8 +206,7 @@ const KG_PER_PHONE_CHARGE = 0.0086; // 0.012 kWh per full smartphone charge × 0
 export function impactAnalogies(totalKgSaved: number): ImpactAnalogies {
   const safeKg = Math.max(0, totalKgSaved);
   return {
-    treesEquivalent:
-      Math.round((safeKg / EMISSION_FACTORS.treeAbsorptionPerYear.value) * 10) / 10,
+    treesEquivalent: Math.round((safeKg / EMISSION_FACTORS.treeAbsorptionPerYear.value) * 10) / 10,
     kmNotDriven: Math.round(safeKg / EMISSION_FACTORS.carPetrol.value),
     phoneCharges: Math.round(safeKg / KG_PER_PHONE_CHARGE),
   };

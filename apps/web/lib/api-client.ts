@@ -9,11 +9,13 @@ import type {
   ActionLogEntry,
   ActionLogRequest,
   AssistantQueryRequest,
+  BadgeDefinition,
   BaselineFootprintResult,
   BaselineSurveyInput,
   BootstrapRequest,
   CommuteCompareRequest,
   CommuteModeEstimate,
+  DailyPledge,
   ErrorCode,
   EvFitInput,
   EvFitResult,
@@ -25,6 +27,8 @@ import type {
   KusumResult,
   LevelProgress,
   MissionProgress,
+  PledgeRequest,
+  QuizAnswers,
   SuryaGharInput,
   SuryaGharResult,
   UserState,
@@ -62,10 +66,9 @@ export interface BaselineResponse {
 }
 
 /**
- * Server-side gamification summary: the API trims the (potentially long)
- * actionLog from responses and pre-computes the level. earnedBadges and
- * pledge are included (lightweight), but actionLog is omitted (handled
- * via todayLog in action responses or rebuilt client-side).
+ * Server-side gamification summary (mirrors the API's summarizeGamification
+ * helper): the API trims the potentially long actionLog and pre-computes the
+ * level; both the log and dashboard responses serialise through this shape.
  */
 export interface GamificationSummary {
   points: GamificationState['points'];
@@ -80,6 +83,14 @@ export interface ActionLogResponse {
   impact: ActionImpact;
   gamification: GamificationSummary;
   todayLog: ActionLogEntry[];
+  /** Badges earned by THIS log — full definitions so the UI can toast them. */
+  newBadges: BadgeDefinition[];
+}
+
+/** Quiz estimate payload: the footprint plus the survey it was derived from. */
+export interface QuizEstimateResponse {
+  baseline: BaselineFootprintResult;
+  survey: BaselineSurveyInput;
 }
 
 export interface DashboardResponse {
@@ -151,9 +162,7 @@ function toApiError(payload: unknown, status: number): ApiErrorShape {
         return {
           code: candidate.code as ErrorCode,
           message:
-            typeof candidate.message === 'string'
-              ? candidate.message
-              : 'The request failed.',
+            typeof candidate.message === 'string' ? candidate.message : 'The request failed.',
         };
       }
     }
@@ -270,4 +279,12 @@ export function queryAssistant(
   requestBody: AssistantQueryRequest,
 ): Promise<ApiResult<AssistantResponse>> {
   return post('/assistant/query', requestBody);
+}
+
+export function quizEstimate(answers: QuizAnswers): Promise<ApiResult<QuizEstimateResponse>> {
+  return post('/quiz/estimate', { answers });
+}
+
+export function setPledge(requestBody: PledgeRequest): Promise<ApiResult<{ pledge: DailyPledge }>> {
+  return post('/pledge', requestBody);
 }

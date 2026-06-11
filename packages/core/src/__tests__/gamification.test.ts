@@ -8,6 +8,7 @@ import type { AppError } from '../errors';
 import {
   LEVELS,
   WEEKLY_MISSIONS,
+  applyPledgeBonus,
   evaluateMissions,
   impactAnalogies,
   levelForPoints,
@@ -32,6 +33,13 @@ describe('pointsForCo2 and levels', () => {
     expect(pointsForCo2(1.55)).toBe(16);
     expect(pointsForCo2(0.04)).toBe(0);
     expect(pointsForCo2(-3)).toBe(0); // negative savings never deduct points
+  });
+
+  it('applies the 1.2× pledge bonus with integer rounding', () => {
+    expect(applyPledgeBonus(32)).toBe(38); // 32 × 1.2 = 38.4 → 38
+    expect(applyPledgeBonus(10)).toBe(12); // 10 × 1.2 = 12
+    expect(applyPledgeBonus(8)).toBe(10); // 8 × 1.2 = 9.6 → 10
+    expect(applyPledgeBonus(0)).toBe(0);
   });
 
   it('defines the five contracted levels', () => {
