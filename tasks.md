@@ -103,7 +103,22 @@
 
 **Acceptance**: live chat grounded with calculator numbers; fallbacks still pass with keys removed.
 
-## Phase 7 — Firebase Persistence & Auth (Day 4–6) ⬜
+## Phase 7 — Initiatives Hub & Firebase Persistence (Day 4–6) ⬜
+
+- [ ] Core: `initiatives.ts` + `INITIATIVE_CATALOG` (≥20 entries across 7 categories), `InitiativeCategory` type, `initiativesByCategory()` helper
+- [ ] Catalog entries: home-energy (UJALA/BEE/induction), mobility (PM E-DRIVE/metro/engine-off), food (millets/compost), waste (cloth-bags/e-waste), water (tap-off/rainwater), green-money (green credit/deposits), community (tree plantation/circles)
+- [ ] Mission LiFE theme mapping: every initiative links to one of 7 official LiFE themes; landing hero pledges link merilife.nic.in
+- [ ] Web route `/initiatives`: category nav, cards with kind/benefit/howTo steps, quick-log + calculator links
+- [ ] Research integration: cite all 25 sourced claims (UJALA numbers, PM E-DRIVE allocations, LiFE stats)
+- [ ] Firebase project wiring; `FirestoreUserStore implements UserStore` (drop-in for in-memory)
+- [ ] Collections: `users`, `actions` (subcollection, paginated), `leaderboards` (aggregated doc)
+- [ ] Firestore security rules: user-can-only-access-own-data; rules unit tests via emulator
+- [ ] Firebase Auth: Google Sign-In (web) + anonymous upgrade path; API verifies ID tokens (Bearer) — replaces trusted `userId` body field
+- [ ] Migrate localStorage state → cloud on first sign-in (merge strategy)
+- [ ] Leaderboard aggregation via scheduled function or on-write trigger
+- [ ] Emulator-suite npm script for offline dev; CI uses emulators
+
+**Acceptance**: `/initiatives` page renders 7 themes with ≥20 cards; Firestore rules pass unit tests; state survives API restart.
 
 - [ ] Firebase project wiring; `FirestoreUserStore implements UserStore` (drop-in for in-memory)
 - [ ] Collections: `users`, `actions` (subcollection, paginated), `leaderboards` (aggregated doc)
@@ -115,7 +130,20 @@
 
 **Acceptance**: state survives API restart; rules tests prove cross-user reads fail.
 
-## Phase 8 — AI Maps & Commute Intelligence (Day 6–8) ⬜
+## Phase 8 — AI Maps, Bill OCR & Kisan Mode (Day 6–8) ⬜
+
+- [ ] Maps JavaScript API map on `/commute` page (lazy-loaded, ready-with-key)
+- [ ] Places Autocomplete for home/office inputs; save named routes per user
+- [ ] Directions/Routes API: per-mode polylines + durations; render mode comparison on map
+- [ ] Bill upload on `/schemes` (Surya Ghar tab): image drop/choose → `POST /api/bill/extract` → Gemini multimodal vision → JSON `{monthlyUnits, tariffPerUnit, confidence}`
+- [ ] Prefill form with extracted values; graceful 501 when no key (show "needs live Gemini")
+- [ ] `/kisan` route: Hindi-first simplified flow (large type, ≤ 3 taps); KUSUM advice with Web Speech read-aloud (hi-IN voice)
+- [ ] "Greenest route" scoring: combine Distance Matrix + emission factors → AI summary via Gemini
+- [ ] Commute streak: detect repeated green-commute logging, bonus multiplier
+- [ ] Air-quality layer (Google Air Quality API) on map — pollution-aware route nudges
+- [ ] Cache geocoding/route results (in-memory LRU + Firestore) to respect quotas
+
+**Acceptance**: photo of bill produces auto-filled solar calc; `/kisan` flow operable one-handed; map shows 3 modes ranked by CO2.
 
 - [ ] Maps JavaScript API map on `/commute` page (lazy-loaded, ready-with-key)
 - [ ] Places Autocomplete for home/office inputs; save named routes per user
@@ -127,7 +155,7 @@
 
 **Acceptance**: type two addresses → see modes ranked by CO2 on a live map with an AI explanation.
 
-## Phase 9 — Gamification 2.0 & Community (Day 8–9) ⬜
+## Phase 9 — Circles, Gamification 2.0 & Community (Day 8–9) ⬜
 
 - [ ] Circles: create/join via 6-char code; circle leaderboard slice; RWA/office/college presets
 - [ ] Weekly team challenges ("Society Solar Sprint") with shared progress bar
@@ -148,16 +176,17 @@
 
 **Acceptance**: Lighthouse PWA installable; full onboarding journey completable in Hindi.
 
-## Phase 11 — Cloud Deployment & CI (Day 10–11) ⬜
+## Phase 11 — Cloud Deployment & Live URLs (Day 10–11) ⬜
 
-- [ ] Dockerfile (multi-stage) for API; deploy to Cloud Run (`gcloud run deploy`)
+- [x] Dockerfile (multi-stage) for API; deploy to Cloud Run (`gcloud run deploy`)
+- [x] GitHub Actions: lint + type-check + unit + e2e (with emulators) on push — wired in `.github/workflows/ci.yml`
+- [ ] Deploy to event-manager GCP project: `scripts/deploy.ps1 -ProjectId <id>` (gcloud auth login required)
 - [ ] Web: Firebase Hosting (static + rewrites to Run) or Cloud Run for SSR
 - [ ] Secret Manager for all keys; service account with least privilege
-- [ ] GitHub Actions: lint + type-check + unit + e2e (with emulators) on push; deploy on tag
 - [ ] Cloud Logging/Monitoring dashboards; uptime check on `/api/health`
 - [ ] Custom domain + HTTPS; update README with live URL + "notes for evaluators"
 
-**Acceptance**: public URL serves the full app; CI red blocks merge; logs visible in Cloud console.
+**Acceptance**: public URLs serve the full app; CI green on push; logs visible in Cloud console.
 
 ## Phase 12 — Farmer Mode & Bill Intelligence (Day 11–12) ⬜
 
