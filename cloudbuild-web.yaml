@@ -1,0 +1,42 @@
+# Cloud Build: build + deploy the Carbon Saathi web app to Cloud Run.
+# Run AFTER the API deploy (its URL becomes the build-time proxy target):
+#   gcloud builds submit --config cloudbuild-web.yaml --substitutions=_API_BASE_URL=https://<api-url>
+substitutions:
+  _REGION: asia-south1
+  _SERVICE: carbon-saathi-web
+  _REPO: carbon-saathi
+  _API_BASE_URL: http://localhost:8080 # overridden on the command line
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/web:$BUILD_ID
+      - --build-arg
+      - API_BASE_URL=${_API_BASE_URL}
+      - -f
+      - apps/web/Dockerfile
+      - .
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/web:$BUILD_ID']
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/web:$BUILD_ID
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --memory=512Mi
+      - --max-instances=3
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/web:$BUILD_ID
+options:
+  logging: CLOUD_LOGGING_ONLY

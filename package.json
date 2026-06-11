@@ -1,0 +1,39 @@
+{
+  "name": "carbon-saathi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Carbon Saathi — your personal climate companion for India. Measure, understand, and reduce your carbon footprint with AI guidance grounded in real Indian schemes (PM Surya Ghar, PM KUSUM, EV adoption).",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "workspaces": [
+    "packages/core",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "build:core": "npm run build -w @carbon-saathi/core",
+    "build": "npm run build:core && npm run build -w @carbon-saathi/api && npm run build -w @carbon-saathi/web",
+    "dev": "npm run build:core && concurrently -n api,web -c blue,green \"npm run dev -w @carbon-saathi/api\" \"npm run dev -w @carbon-saathi/web\"",
+    "dev:api": "npm run build:core && npm run dev -w @carbon-saathi/api",
+    "dev:web": "npm run dev -w @carbon-saathi/web",
+    "test": "npm run build:core && npm run test -w @carbon-saathi/core && npm run test -w @carbon-saathi/api && npm run test -w @carbon-saathi/web",
+    "test:core": "npm run test -w @carbon-saathi/core",
+    "test:api": "npm run build:core && npm run test -w @carbon-saathi/api",
+    "test:web": "npm run test -w @carbon-saathi/web",
+    "type-check": "npm run build:core && npm run type-check --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,md,json,css}\"",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "a11y": "playwright test e2e/a11y.spec.ts"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "@playwright/test": "^1.49.1",
+    "concurrently": "^9.1.0",
+    "prettier": "^3.4.2"
+  }
+}

@@ -1,0 +1,214 @@
+/**
+ * Design-token system of record for Carbon Saathi (eco-modern language).
+ * Owns: palette (light/dark), 8px spacing grid, fluid type scale, radii,
+ * glass/bento utilities and global a11y affordances. Components consume
+ * tokens only — never hard-coded colors.
+ */
+@import "tailwindcss";
+
+/* ── Raw tokens — light (default) ───────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  --bg: #f6faf7;
+  --surface: #ffffff;
+  --surface-glass: rgba(255, 255, 255, 0.66);
+  --text: #142a1f;
+  --text-muted: rgba(20, 42, 31, 0.68); /* keeps ≥ 4.5:1 on --bg */
+  --primary: #136843; /* 4.5:1+ even on primary-soft fills (axe-verified) */
+  --primary-hover: #115e3a;
+  --primary-soft: rgba(23, 122, 76, 0.12);
+  --accent: #e8a13d; /* solar amber */
+  --accent-soft: rgba(232, 161, 61, 0.16);
+  --info: #2a9d8f;
+  --error: #c0152f;
+  --border: rgba(20, 42, 31, 0.14);
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --shadow-soft: 0 8px 32px rgba(20, 42, 31, 0.08);
+  --ring: var(--primary);
+  --scrim: rgba(10, 20, 15, 0.55); /* modal backdrop — never pure black */
+
+  /* Chart palette (footprint categories) — re-tinted per theme below. */
+  --chart-energy: #177a4c;
+  --chart-transport: #2a9d8f;
+  --chart-food: #e8a13d;
+  --chart-shopping: #6d597a;
+
+  /* 8px spacing grid. */
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  --space-5: 2.5rem;
+  --space-6: 3rem;
+  --space-8: 4rem;
+
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* Fluid type scale — clamps from ~360px phones to wide desktops. */
+  --text-xs: clamp(0.75rem, 0.72rem + 0.12vw, 0.8125rem);
+  --text-sm: clamp(0.84rem, 0.8rem + 0.18vw, 0.9375rem);
+  --text-base: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+  --text-lg: clamp(1.15rem, 1.08rem + 0.35vw, 1.375rem);
+  --text-xl: clamp(1.4rem, 1.26rem + 0.7vw, 1.75rem);
+  --text-2xl: clamp(1.75rem, 1.5rem + 1.2vw, 2.5rem);
+  --text-display: clamp(2.5rem, 1.9rem + 3vw, 4.25rem);
+}
+
+/* ── Raw tokens — dark overrides ────────────────────────────────────────── */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0f1714; /* deep moss — never pure black, per design language */
+  --surface: #16211c;
+  --surface-glass: rgba(22, 33, 28, 0.62);
+  --text: #ecf4ee;
+  --text-muted: rgba(236, 244, 238, 0.66);
+  --primary: #3ecf8e;
+  --primary-hover: #5cd9a4; /* hover brightens on dark (inverse of light) */
+  --primary-soft: rgba(62, 207, 142, 0.16);
+  --accent: #f3b75c;
+  --accent-soft: rgba(243, 183, 92, 0.18);
+  --info: #4fb3a9;
+  --error: #f07c8e; /* lightened for ≥ 4.5:1 contrast on dark surfaces */
+  --border: rgba(236, 244, 238, 0.16);
+  --glass-border: rgba(236, 244, 238, 0.12);
+  --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --scrim: rgba(5, 10, 8, 0.65);
+
+  --chart-energy: #3ecf8e;
+  --chart-transport: #5ac8bd;
+  --chart-food: #f3b75c;
+  --chart-shopping: #b9a6dd;
+}
+
+/* ── Tailwind theme bridge ───────────────────────────────────────────────
+   Maps raw tokens to Tailwind v4 utility names so components can write
+   bg-surface, text-ink, border-line, font-display, rounded-card, etc.
+   `inline` keeps utilities pointing at the live CSS vars → theme-reactive. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--text);
+  --color-ink-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-info: var(--info);
+  --color-error: var(--error);
+  --color-line: var(--border);
+  --font-display: var(--font-space-grotesk), 'Segoe UI', sans-serif;
+  --font-body: var(--font-inter), system-ui, sans-serif;
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-space-grotesk), 'Segoe UI', sans-serif;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+/* Single global focus treatment — visible on every theme, keyboard only. */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--primary-soft);
+}
+
+/* ── Component utilities ────────────────────────────────────────────────── */
+@layer components {
+  /* Glassmorphism card — the default container of the design language. */
+  .glass-card {
+    background: var(--surface-glass);
+    backdrop-filter: blur(14px) saturate(1.3);
+    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+  }
+
+  /* Bento layout: dense auto-fit grid; combine with .bento-wide/.bento-tall. */
+  .bento-grid {
+    display: grid;
+    gap: var(--space-2);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    grid-auto-flow: dense;
+  }
+  .bento-wide {
+    grid-column: span 2;
+  }
+  .bento-tall {
+    grid-row: span 2;
+  }
+  @media (max-width: 640px) {
+    /* Spans collapse on phones so no tile can force horizontal scroll. */
+    .bento-wide {
+      grid-column: auto;
+    }
+  }
+
+  /* Skip link: visually hidden until keyboard-focused (WCAG 2.4.1). */
+  .skip-link {
+    position: fixed;
+    top: var(--space-1);
+    left: var(--space-1);
+    z-index: 100;
+    padding: var(--space-1) var(--space-2);
+    background: var(--surface);
+    color: var(--primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    transform: translateY(-200%);
+  }
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
+
+  /* Toast stack lives above modals so feedback is never hidden. */
+  .toast-stack {
+    position: fixed;
+    bottom: var(--space-2);
+    right: var(--space-2);
+    z-index: 120;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    max-width: min(92vw, 24rem);
+  }
+}
+
+/* ── Motion kill-switch (WCAG 2.3.3) ────────────────────────────────────
+   Near-zero (not zero) durations so transitionend/animationend still fire
+   for logic that awaits them. SMIL/JS animations are gated separately via
+   useReducedMotion in components. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
