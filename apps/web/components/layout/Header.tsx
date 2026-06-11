@@ -13,6 +13,7 @@ import { ThemeToggle } from './ThemeToggle';
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/actions', label: 'Actions' },
+  { href: '/initiatives', label: 'Initiatives' },
   { href: '/schemes', label: 'Schemes' },
   { href: '/ev-coach', label: 'EV Coach' },
   { href: '/assistant', label: 'Assistant' },

@@ -17,3 +17,4 @@ export * from './gamification';
 export * from './badges';
 export * from './quick-quiz';
 export * from './google/service-catalog';
+export * from './initiatives';

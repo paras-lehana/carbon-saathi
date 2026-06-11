@@ -66,6 +66,12 @@ const FEATURES = [
     body: 'A Gemini-powered coach grounded in your own calculator numbers — specific answers, never vague advice.',
     href: '/assistant',
   },
+  {
+    icon: '🌿',
+    title: 'Initiatives Hub',
+    body: '25+ sourced climate actions across Mission LiFE\'s 7 themes — home energy, mobility, food, waste, water, finance and community.',
+    href: '/initiatives',
+  },
 ] as const;
 
 const HOW_IT_WORKS = [
