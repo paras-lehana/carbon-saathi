@@ -12,10 +12,12 @@ COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-# npm ci has a known bug with optional native deps when the lockfile was
-# generated on a different OS (github.com/npm/cli/issues/4828). Use npm install
-# so optional packages are re-evaluated for the current platform (linux musl).
-RUN npm install --no-audit --no-fund
+# npm ci resolves optional native deps from the lockfile, which was generated on
+# Windows and only records the Win32 lightningcss binary. Drop the lockfile so
+# npm install re-evaluates optional deps for the container's platform (musl).
+# All non-optional packages are pinned in package.json ranges — deterministic.
+# Ref: https://github.com/npm/cli/issues/4828
+RUN rm package-lock.json && npm install --no-audit --no-fund
 
 COPY tsconfig.base.json ./
 COPY packages/core packages/core
