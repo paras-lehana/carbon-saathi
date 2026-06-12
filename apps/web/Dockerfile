@@ -12,7 +12,10 @@ COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-RUN npm ci --no-audit --no-fund
+# npm ci has a known bug with optional native deps when the lockfile was
+# generated on a different OS (github.com/npm/cli/issues/4828). Use npm install
+# so optional packages are re-evaluated for the current platform (linux musl).
+RUN npm install --no-audit --no-fund
 
 COPY tsconfig.base.json ./
 COPY packages/core packages/core
