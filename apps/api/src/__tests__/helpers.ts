@@ -22,6 +22,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     rateLimitWindowMs: 60_000,
     rateLimitMax: 60,
     assistantRateLimitMax: 10,
+    commuteRateLimitMax: 10,
     ...overrides,
   };
 }

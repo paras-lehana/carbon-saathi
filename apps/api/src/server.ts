@@ -104,7 +104,18 @@ export function buildApp(config: AppConfig, deps: AppDeps = {}): Express {
   app.use('/api/pledge', createPledgeRouter(store, now));
   app.use('/api/schemes', createSchemesRouter());
   app.use('/api/ev', createEvRouter());
-  app.use('/api/commute', createCommuteRouter(config, deps.fetchFn));
+  // Security: commute lookups call the billable Maps Distance Matrix API when
+  // GOOGLE_MAPS_API_KEY is set — the same stricter bucket the assistant has,
+  // so attacker-driven city-pair queries cannot run up the Maps bill.
+  app.use(
+    '/api/commute',
+    createRateLimiter({
+      capacity: config.commuteRateLimitMax,
+      windowMs: config.rateLimitWindowMs,
+      now,
+    }),
+    createCommuteRouter(config, deps.fetchFn),
+  );
   app.use('/api/leaderboard', createLeaderboardRouter(store));
   app.use('/api/assistant', createAssistantRouter({ config, store, gemini, now }));
 

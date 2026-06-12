@@ -42,7 +42,7 @@ export function CategoryDonut({
         centerLabel={formatKgCo2(totalKgAnnual)}
         centerSublabel="per year"
       />
-      <ul className="m-0 flex list-none flex-col gap-2 p-0">
+      <ul role="list" className="m-0 flex list-none flex-col gap-2 p-0">
         {CATEGORY_ORDER.map((category) => (
           <li key={category} className="flex items-center gap-2 text-sm">
             <span

@@ -18,6 +18,7 @@
   --text-muted: rgba(20, 42, 31, 0.68); /* keeps ≥ 4.5:1 on --bg */
   --success: #136843; /* reuses primary green — ≥ 4.5:1 on surface */
   --primary: #136843; /* 4.5:1+ even on primary-soft fills (axe-verified) */
+  --on-primary: #ffffff; /* text on primary fills — white on #136843 ≈ 7.3:1 */
   --primary-hover: #115e3a;
   --primary-soft: rgba(23, 122, 76, 0.12);
   --accent: #e8a13d; /* solar amber */
@@ -72,6 +73,7 @@
   --success: #3ecf8e; /* matches dark primary — ≥ 4.5:1 on dark surfaces */
   --primary: #3ecf8e;
   --primary-hover: #5cd9a4; /* hover brightens on dark (inverse of light) */
+  --on-primary: #0f1714; /* dark ink on the bright green ≈ 9.5:1 (white would be ~2:1) */
   --primary-soft: rgba(62, 207, 142, 0.16);
   --accent: #f3b75c;
   --accent-soft: rgba(243, 183, 92, 0.18);
@@ -97,6 +99,7 @@
   --color-surface: var(--surface);
   --color-surface-alt: var(--surface-alt);
   --color-success: var(--success);
+  --color-on-primary: var(--on-primary);
   --color-ink: var(--text);
   --color-ink-muted: var(--text-muted);
   --color-primary: var(--primary);

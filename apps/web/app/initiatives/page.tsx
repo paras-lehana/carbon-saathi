@@ -27,7 +27,7 @@ const CATEGORY_COUNTS: ReadonlyMap<InitiativeCategory, number> = new Map(
 function pillClasses(active: boolean): string {
   return [
     'rounded-pill px-3 py-1.5 text-sm font-semibold transition-colors',
-    active ? 'bg-primary text-white' : 'bg-surface-alt text-ink hover:bg-primary-soft',
+    active ? 'bg-primary text-on-primary' : 'bg-surface-alt text-ink hover:bg-primary-soft',
   ].join(' ');
 }
 
@@ -57,7 +57,7 @@ export default function InitiativesPage(): React.JSX.Element {
             href="https://merilife.gov.in"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-pill bg-primary px-3 py-1 text-xs font-semibold text-white no-underline hover:opacity-90"
+            className="inline-flex items-center gap-1 rounded-pill bg-primary px-3 py-1 text-xs font-semibold text-on-primary no-underline hover:opacity-90"
           >
             🌿 Take the LiFE pledge at merilife.gov.in
             <span aria-hidden="true">→</span>

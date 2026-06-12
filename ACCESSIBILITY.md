@@ -48,7 +48,8 @@ users while keeping ≥ 16:1 body contrast.
 | Saathi Chat | `Tab` to input, `Enter` to send | New replies announced from the `role="log"` region; suggestion chips are buttons |
 | Landing quiz | `Tab` between options, `Enter`/`Space` to pick | Focus moves to each new question's prompt; question changes and the final estimate announced via a polite live region |
 | Daily pledge | `Tab` to the labelled select, `Enter` to pledge | Visible `<label>` via the Field primitive; failures announced with `role="alert"`; success toasted |
-| Badge wall | `Tab` through badge tiles | Each tile is a button; earned/locked state in the accessible name; the unlock hint is linked via `aria-describedby` and shows on focus as well as hover |
+| Badge wall | `Tab` through badge tiles, `Escape` to dismiss the hint | Each tile is a button; earned/locked state in the accessible name; the unlock hint is linked via `aria-describedby`, shows on focus as well as hover, and dismisses on Escape (WCAG 1.4.13) |
+| Chat log | `Tab` to the log, arrow keys to scroll | The conversation region is focusable (`tabIndex=0`) so long histories are keyboard-scrollable |
 | Initiatives filters | `Tab` between pills, `Enter`/`Space` to toggle | `aria-pressed` filter buttons; result count announced via a polite live region; "How to start" uses native `<details>` |
 | Toasts | none required | `aria-live` polite announcement; auto-dismiss never traps focus |
 | Theme toggle | `Enter`/`Space` | State reflected via `aria-pressed` |
@@ -62,7 +63,13 @@ same flow.
 [`e2e/a11y.spec.ts`](e2e/a11y.spec.ts) runs @axe-core/playwright against all 11 routes —
 `/`, `/onboarding`, `/dashboard`, `/actions`, `/initiatives`, `/schemes`, `/ev-coach`,
 `/assistant`, `/leaderboard`, `/google-services`, `/about` — and fails on any
-**serious or critical** violation.
+**serious or critical** violation. The landing page and seeded dashboard are scanned in
+**dark theme too**: dark mode re-tints every token, and a light-only scan once missed a
+white-on-green button at ~2:1 — text on primary fills now uses the theme-aware
+`--on-primary` token (white in light, dark ink in dark, both ≥ 7:1).
+
+Styled lists (`list-none`) carry an explicit `role="list"` so Safari/VoiceOver keep
+announcing them as lists; the desktop nav is a real `<ul>`.
 
 ```bash
 npm run a11y

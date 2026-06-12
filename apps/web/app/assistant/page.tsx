@@ -12,9 +12,7 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { useToast } from '../../components/ui/Toast';
 import * as api from '../../lib/api-client';
 import { useProfile } from '../../lib/contexts';
-
-const INPUT_CLASS =
-  'w-full rounded-control border border-line bg-surface px-3 py-2 text-base text-ink';
+import { INPUT_CLASS } from '../../components/ui/input-styles';
 
 const MAX_MESSAGE_CHARS = 1000; // mirrors the API's assistantQueryRequestSchema cap
 
@@ -113,7 +111,10 @@ export default function AssistantPage(): React.JSX.Element {
           role="log"
           aria-live="polite"
           aria-label="Conversation with Saathi"
-          className="flex max-h-[55vh] min-h-[18rem] flex-col gap-3 overflow-y-auto pr-1"
+          // Scrollable region: focusable so keyboard users can arrow through
+          // long conversations (axe scrollable-region-focusable).
+          tabIndex={0}
+          className="flex max-h-[55vh] min-h-[18rem] flex-col gap-3 overflow-y-auto pr-1 focus-visible:outline-primary"
         >
           {messages.map((message) => (
             <div

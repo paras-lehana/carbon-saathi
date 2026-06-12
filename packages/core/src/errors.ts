@@ -20,6 +20,9 @@ export const ERROR_DEFINITIONS = {
 
 export type ErrorCode = keyof typeof ERROR_DEFINITIONS;
 
+/** The closed code set as a value — for clients that need runtime membership checks. */
+export const ALL_ERROR_CODES = Object.keys(ERROR_DEFINITIONS) as readonly ErrorCode[];
+
 export interface AppError {
   readonly code: ErrorCode;
   readonly message: string;

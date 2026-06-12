@@ -3,7 +3,7 @@
  * are the costliest thing the API does), then the grounding pipeline in
  * services/assistant.ts. Raw user messages never reach the logs.
  */
-import { assistantQueryRequestSchema, type AssistantQueryRequest } from '@carbon-saathi/core';
+import { assistantQueryRequestSchema } from '@carbon-saathi/core';
 import { Router } from 'express';
 import type { AppConfig } from '../config';
 import { createRateLimiter } from '../middleware/rate-limit';
@@ -30,7 +30,7 @@ export function createAssistantRouter(deps: AssistantRouterDeps): Router {
     }),
     validateBody(assistantQueryRequestSchema),
     asyncHandler(async (_req, res) => {
-      const body = parsedBody<AssistantQueryRequest>(res);
+      const body = parsedBody(res, assistantQueryRequestSchema);
       const answer = await answerAssistantQuery(
         { config: deps.config, store: deps.store, gemini: deps.gemini },
         body,

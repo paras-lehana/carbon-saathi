@@ -78,7 +78,7 @@ export function createUsersRouter(store: UserStore, now: () => number): Router {
     '/bootstrap',
     validateBody(bootstrapRequestSchema),
     asyncHandler(async (_req, res) => {
-      const body = parsedBody<BootstrapRequest>(res);
+      const body = parsedBody(res, bootstrapRequestSchema);
       if (body.userId !== undefined) {
         const existing = await store.getUser(body.userId);
         if (existing !== undefined) {

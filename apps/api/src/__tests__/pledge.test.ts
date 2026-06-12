@@ -18,7 +18,9 @@ describe('POST /api/pledge', () => {
   let app: Express;
 
   beforeEach(() => {
-    app = testApp();
+    // Frozen mid-day IST clock (12:00 IST): the pledge date and the log that
+    // pays its bonus can never straddle an IST midnight, whatever hour CI runs.
+    app = testApp({}, { now: () => Date.parse('2026-06-12T06:30:00.000Z') });
   });
 
   it('records a pledge for today with bonus pending', async () => {
@@ -27,7 +29,8 @@ describe('POST /api/pledge', () => {
     expect(res.status).toBe(200);
     expect(res.body.pledge.actionId).toBe('veg-day');
     expect(res.body.pledge.bonusApplied).toBe(false);
-    expect(res.body.pledge.dateISO).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // The frozen clock (06:30Z = 12:00 IST) pins the IST calendar date exactly.
+    expect(res.body.pledge.dateISO).toBe('2026-06-12');
   });
 
   it('returns 404 NOT_FOUND for an unknown user', async () => {

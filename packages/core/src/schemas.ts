@@ -25,13 +25,57 @@ import type {
   SuryaGharInput,
 } from './types';
 
+// Single source of truth for user-facing numeric input bounds. Consumed by
+// BOTH the zod schemas below and the web app's client-side form validation —
+// change a bound here and every layer follows; there are no mirrored
+// literals to keep in sync.
+export const SURVEY_BOUNDS = {
+  householdSize: { min: 1, max: 15 },
+  monthlyElectricityKwh: { max: 5000 },
+  monthlyBillInr: { max: 100_000 },
+  lpgCylindersPerMonth: { min: 0, max: 10 },
+  commuteKmOneWay: { min: 0, max: 200 },
+  commuteDaysPerWeek: { min: 0, max: 7 },
+  carpoolSize: { min: 1, max: 4 },
+  flightsShortPerYear: { min: 0, max: 100 },
+  flightsLongPerYear: { min: 0, max: 50 },
+  acHoursPerDay: { min: 0, max: 24 },
+} as const;
+
+export const SURYA_GHAR_BOUNDS = {
+  monthlyUnits: { min: 30, max: 2000 },
+  roofAreaSqFt: { min: 80, max: 20_000 },
+  tariffPerUnit: { max: 30 },
+} as const;
+
+export const KUSUM_BOUNDS = {
+  pumpHp: { min: 1, max: 10 },
+  landAcres: { max: 10_000 },
+} as const;
+
+export const EV_FIT_BOUNDS = {
+  dailyKm: { min: 1, max: 300 },
+  longTripsPerMonth: { min: 0, max: 20 },
+} as const;
+
 export const baselineSurveySchema: z.ZodType<BaselineSurveyInput> = z
   .object({
-    householdSize: z.number().int().min(1).max(15),
+    householdSize: z
+      .number()
+      .int()
+      .min(SURVEY_BOUNDS.householdSize.min)
+      .max(SURVEY_BOUNDS.householdSize.max),
     // >5,000 kWh/month is outside residential reality — treat as junk input.
-    monthlyElectricityKwh: z.number().positive().max(5000).optional(),
-    monthlyBillInr: z.number().positive().max(100_000).optional(),
-    lpgCylindersPerMonth: z.number().min(0).max(10),
+    monthlyElectricityKwh: z
+      .number()
+      .positive()
+      .max(SURVEY_BOUNDS.monthlyElectricityKwh.max)
+      .optional(),
+    monthlyBillInr: z.number().positive().max(SURVEY_BOUNDS.monthlyBillInr.max).optional(),
+    lpgCylindersPerMonth: z
+      .number()
+      .min(SURVEY_BOUNDS.lpgCylindersPerMonth.min)
+      .max(SURVEY_BOUNDS.lpgCylindersPerMonth.max),
     commuteMode: z.enum([
       'car-petrol',
       'car-diesel',
@@ -44,14 +88,37 @@ export const baselineSurveySchema: z.ZodType<BaselineSurveyInput> = z
       'cycle-walk',
       'wfh',
     ]),
-    commuteKmOneWay: z.number().min(0).max(200),
-    commuteDaysPerWeek: z.number().int().min(0).max(7),
-    carpoolSize: z.number().int().min(1).max(4).optional(),
-    flightsShortPerYear: z.number().int().min(0).max(100),
-    flightsLongPerYear: z.number().int().min(0).max(50),
+    commuteKmOneWay: z
+      .number()
+      .min(SURVEY_BOUNDS.commuteKmOneWay.min)
+      .max(SURVEY_BOUNDS.commuteKmOneWay.max),
+    commuteDaysPerWeek: z
+      .number()
+      .int()
+      .min(SURVEY_BOUNDS.commuteDaysPerWeek.min)
+      .max(SURVEY_BOUNDS.commuteDaysPerWeek.max),
+    carpoolSize: z
+      .number()
+      .int()
+      .min(SURVEY_BOUNDS.carpoolSize.min)
+      .max(SURVEY_BOUNDS.carpoolSize.max)
+      .optional(),
+    flightsShortPerYear: z
+      .number()
+      .int()
+      .min(SURVEY_BOUNDS.flightsShortPerYear.min)
+      .max(SURVEY_BOUNDS.flightsShortPerYear.max),
+    flightsLongPerYear: z
+      .number()
+      .int()
+      .min(SURVEY_BOUNDS.flightsLongPerYear.min)
+      .max(SURVEY_BOUNDS.flightsLongPerYear.max),
     dietPattern: z.enum(['vegan', 'vegetarian', 'eggs', 'nonveg-weekly', 'nonveg-daily']),
     shoppingLevel: z.enum(['low', 'medium', 'high']),
-    acHoursPerDay: z.number().min(0).max(24),
+    acHoursPerDay: z
+      .number()
+      .min(SURVEY_BOUNDS.acHoursPerDay.min)
+      .max(SURVEY_BOUNDS.acHoursPerDay.max),
     state: z.string().trim().min(1).max(60).optional(),
   })
   .refine((s) => s.monthlyElectricityKwh !== undefined || s.monthlyBillInr !== undefined, {
@@ -60,27 +127,38 @@ export const baselineSurveySchema: z.ZodType<BaselineSurveyInput> = z
   });
 
 export const suryaGharInputSchema: z.ZodType<SuryaGharInput> = z.object({
-  monthlyUnits: z.number().min(30).max(2000),
-  roofAreaSqFt: z.number().min(80).max(20_000).optional(),
-  tariffPerUnit: z.number().positive().max(30).optional(),
+  monthlyUnits: z
+    .number()
+    .min(SURYA_GHAR_BOUNDS.monthlyUnits.min)
+    .max(SURYA_GHAR_BOUNDS.monthlyUnits.max),
+  roofAreaSqFt: z
+    .number()
+    .min(SURYA_GHAR_BOUNDS.roofAreaSqFt.min)
+    .max(SURYA_GHAR_BOUNDS.roofAreaSqFt.max)
+    .optional(),
+  tariffPerUnit: z.number().positive().max(SURYA_GHAR_BOUNDS.tariffPerUnit.max).optional(),
   state: z.string().trim().min(1).max(60).optional(),
 });
 
 export const kusumInputSchema: z.ZodType<KusumInput> = z.object({
   farmerType: z.enum(['individual', 'group']),
   pumpType: z.enum(['diesel', 'grid', 'none']),
-  pumpHp: z.number().min(1).max(10),
+  pumpHp: z.number().min(KUSUM_BOUNDS.pumpHp.min).max(KUSUM_BOUNDS.pumpHp.max),
   hasBarrenLand: z.boolean(),
-  landAcres: z.number().positive().max(10_000).optional(),
+  landAcres: z.number().positive().max(KUSUM_BOUNDS.landAcres.max).optional(),
   state: z.string().trim().min(1).max(60).optional(),
 });
 
 export const evFitInputSchema: z.ZodType<EvFitInput> = z.object({
-  dailyKm: z.number().min(1).max(300),
+  dailyKm: z.number().min(EV_FIT_BOUNDS.dailyKm.min).max(EV_FIT_BOUNDS.dailyKm.max),
   currentVehicle: z.enum(['car-petrol', 'car-diesel', 'two-wheeler', 'none']),
   hasHomeCharging: z.boolean(),
   hasOfficeCharging: z.boolean(),
-  longTripsPerMonth: z.number().int().min(0).max(20),
+  longTripsPerMonth: z
+    .number()
+    .int()
+    .min(EV_FIT_BOUNDS.longTripsPerMonth.min)
+    .max(EV_FIT_BOUNDS.longTripsPerMonth.max),
   cityTier: z.union([z.literal(1), z.literal(2), z.literal(3)]),
 });
 

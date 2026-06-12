@@ -7,8 +7,15 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { motion, useReducedMotion, type MotionProps } from 'framer-motion';
-import type { EvCurrentVehicle, EvFitInput, EvFitResult, EvRecommendation } from '@carbon-saathi/core';
+import { motion } from 'framer-motion';
+import { useFadeUp } from '../../lib/motion';
+import { EV_FIT_BOUNDS } from '@carbon-saathi/core';
+import type {
+  EvCurrentVehicle,
+  EvFitInput,
+  EvFitResult,
+  EvRecommendation,
+} from '@carbon-saathi/core';
 import { Button } from '../../components/ui/Button';
 import { CountUp } from '../../components/ui/CountUp';
 import { Field } from '../../components/ui/Field';
@@ -19,11 +26,14 @@ import { useToast } from '../../components/ui/Toast';
 import * as api from '../../lib/api-client';
 import { formatInr, formatKgCo2 } from '../../lib/format';
 import { CommuteCompare } from './components/CommuteCompare';
+import { INPUT_CLASS } from '../../components/ui/input-styles';
 
-const INPUT_CLASS =
-  'w-full rounded-control border border-line bg-surface px-3 py-2 text-base text-ink';
-
-const WIZARD_STEPS = ['Daily distance', 'Current vehicle', 'Charging & city', 'Long trips'] as const;
+const WIZARD_STEPS = [
+  'Daily distance',
+  'Current vehicle',
+  'Charging & city',
+  'Long trips',
+] as const;
 
 const VEHICLE_OPTIONS: ReadonlyArray<{ value: EvCurrentVehicle; label: string }> = [
   { value: 'car-petrol', label: 'Car (petrol)' },
@@ -42,7 +52,6 @@ const RECOMMENDATION_META: Record<EvRecommendation, { title: string; icon: strin
 
 export default function EvCoachPage(): React.JSX.Element {
   const { showToast } = useToast();
-  const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(0);
   const [dailyKm, setDailyKm] = useState(25);
   const [currentVehicle, setCurrentVehicle] = useState<EvCurrentVehicle>('car-petrol');
@@ -55,10 +64,7 @@ export default function EvCoachPage(): React.JSX.Element {
   const [result, setResult] = useState<EvFitResult | null>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
 
-  const fadeUp: MotionProps =
-    reduceMotion === true
-      ? {}
-      : { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
+  const fadeUp = useFadeUp();
 
   const goToStep = (next: number): void => {
     setStep(next);
@@ -68,9 +74,10 @@ export default function EvCoachPage(): React.JSX.Element {
 
   const submit = async (): Promise<void> => {
     const trips = Number(longTrips);
-    // Mirrors core's evFitInputSchema bound (integer 0–20).
-    if (longTrips.trim() === '' || !Number.isInteger(trips) || trips < 0 || trips > 20) {
-      setLongTripsError('Enter a whole number of trips, 0 to 20.');
+    // Same EV_FIT_BOUNDS the API enforces — a value accepted here cannot be rejected there.
+    const { min, max } = EV_FIT_BOUNDS.longTripsPerMonth;
+    if (longTrips.trim() === '' || !Number.isInteger(trips) || trips < min || trips > max) {
+      setLongTripsError(`Enter a whole number of trips, ${min} to ${max}.`);
       return;
     }
     setLongTripsError(undefined);
@@ -101,8 +108,8 @@ export default function EvCoachPage(): React.JSX.Element {
           Should your next vehicle be electric?
         </h1>
         <p className="mt-2 max-w-xl text-ink-muted">
-          Four honest questions — no brand pitches — and you get a recommendation with real CO₂
-          and rupee savings.
+          Four honest questions — no brand pitches — and you get a recommendation with real CO₂ and
+          rupee savings.
         </p>
       </div>
 
@@ -135,8 +142,8 @@ export default function EvCoachPage(): React.JSX.Element {
               >
                 <input
                   type="range"
-                  min={1}
-                  max={300}
+                  min={EV_FIT_BOUNDS.dailyKm.min}
+                  max={EV_FIT_BOUNDS.dailyKm.max}
                   step={1}
                   value={dailyKm}
                   onChange={(event) => setDailyKm(Number(event.target.value))}
@@ -144,7 +151,10 @@ export default function EvCoachPage(): React.JSX.Element {
                 />
               </Field>
               {/* The range input announces its own value — this echo is visual. */}
-              <p aria-hidden="true" className="m-0 mt-2 font-display text-lg font-bold text-primary">
+              <p
+                aria-hidden="true"
+                className="m-0 mt-2 font-display text-lg font-bold text-primary"
+              >
                 {dailyKm} km / day
               </p>
             </div>
@@ -225,8 +235,8 @@ export default function EvCoachPage(): React.JSX.Element {
               >
                 <input
                   type="number"
-                  min={0}
-                  max={20}
+                  min={EV_FIT_BOUNDS.longTripsPerMonth.min}
+                  max={EV_FIT_BOUNDS.longTripsPerMonth.max}
                   className={INPUT_CLASS}
                   value={longTrips}
                   onChange={(event) => setLongTrips(event.target.value)}

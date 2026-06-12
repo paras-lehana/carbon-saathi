@@ -1,5 +1,7 @@
 # Carbon Saathi
 
+> **Version 0.3.0** — live on Cloud Run with 30-second gamified onboarding, a 260-test unit/integration suite and a 40+-spec e2e/a11y gate.
+
 **Your climate saathi for everyday India.** Measure, understand, and reduce your carbon
 footprint through simple actions and personalised insights — grounded in real Indian schemes
 (PM Surya Ghar, PM KUSUM), EV adoption guidance, and a Gemini-powered coach.
@@ -10,6 +12,10 @@ personal baseline, a daily action habit, and concrete rupee-denominated next ste
 rooftop solar plan with the exact **₹30,000 / ₹60,000 / ₹78,000** PM Surya Ghar subsidy band
 and payback years for *your* electricity bill.
 
+![Carbon Saathi dashboard — bento grid with footprint donut, badges and streaks](e2e/screenshots/dashboard-seeded.png)
+
+*The post-quiz dashboard: footprint donut, badge wall, streak and daily pledge in one bento grid — captured by the Playwright screenshot suite.*
+
 Built with **Google Antigravity + Gemini**.
 
 > **Live demo**: [https://carbon-saathi-web-ktdjm6xcyq-el.a.run.app](https://carbon-saathi-web-ktdjm6xcyq-el.a.run.app) (Cloud Run, asia-south1 — Mumbai, closest region to the users this app serves)
@@ -17,13 +23,42 @@ Built with **Google Antigravity + Gemini**.
 
 **30-second verification for evaluators**
 
-1. `curl https://carbon-saathi-api-ktdjm6xcyq-el.a.run.app/api/health` → expect `"demoMode": false` (live Gemini, key via Secret Manager).
+1. `curl https://carbon-saathi-api-ktdjm6xcyq-el.a.run.app/api/health` → expect
+   `{"status":"ok","version":"0.3.0","demoMode":false}` (plus a live `uptimeSec`) — live
+   Gemini, key via Secret Manager.
 2. Open the live demo and take the 30-second quiz on the landing page — you'll own a dashboard with a badge in under a minute.
 3. Visit `/google-services` for the self-reporting integration catalog (served by the API, rendered on Cloud Run).
 4. Clone and run with **zero keys**: `npm install && npm test && npm run dev` — every feature degrades to a deterministic demo mode.
 5. Rubric-axis → evidence index: [EVALUATION_MAPPING.md](EVALUATION_MAPPING.md).
 
 ---
+
+## The problem
+
+- **Your footprint is invisible.** Most Indians sit somewhere between the ~2 t national
+  average and the ~4 t urban-affluent reality — and have no way to know which, because
+  nothing ever measures *them*.
+- **₹78,000 goes unclaimed.** PM Surya Ghar pays ₹30,000 / ₹60,000 / ₹78,000 toward rooftop
+  solar, yet most eligible homes never apply — sizing, subsidy bands and payback math are
+  buried in scheme PDFs.
+- **Awareness never becomes action.** Climate intent decays within a day when there is no
+  habit loop: no streaks, no points, no daily nudge denominated in kg CO₂ and rupees.
+- **Generic advice ignores India.** Western calculators miss CEA's 0.716 kg CO₂/kWh grid
+  factor, LPG cylinders, Indian commute modes — and every Indian scheme — so their advice
+  doesn't convert here.
+
+**Carbon Saathi turns the invisible into a measured baseline, the unclaimed into a checklist, and awareness into a daily habit — in 30 seconds, in rupees, for India.**
+
+## The solution
+
+| Feature | What it does | Google service |
+|---|---|---|
+| **30-second quiz** | 5 taps on the landing page → instant CO₂ estimate → personal dashboard with a first badge, no sign-up | Cloud Run (web + API, asia-south1) |
+| **Saathi Chat** | AI coach grounded in *your* calculator outputs — never invented numbers, deterministic demo fallback | Gemini 2.5-flash, key via Secret Manager |
+| **PM Surya Ghar / PM KUSUM calculators** | Rooftop kW sizing with the ₹30k/₹60k/₹78k subsidy bands and payback years; farmer routing to KUSUM A/B/C | Cloud Run API; outputs ground Gemini replies |
+| **Initiatives Hub** | 25+ sourced Mission LiFE initiatives with CO₂/₹ figures derived from the same emission factors | Cloud Run + Cloud Logging |
+| **Badges + pledge loop** | 8 badges awarded server-side, streak shields, and a daily pledge that pays a 1.2× points bonus | Cloud Run API (server-side rules) |
+| **Live deployment** | Both services built, stored and served from Mumbai with secrets mounted by reference | Cloud Build → Artifact Registry → Cloud Run · Secret Manager |
 
 ## ✨ Highlights
 
@@ -35,8 +70,6 @@ Built with **Google Antigravity + Gemini**.
 | **Testing** | Unit (one vitest file per core module, [`packages/core/src/__tests__`](packages/core/src/__tests__)), API integration via supertest ([`apps/api/src/__tests__`](apps/api/src/__tests__)), web component tests (RTL + jsdom), Playwright e2e journeys, and automated axe-core accessibility scans ([`e2e/a11y.spec.ts`](e2e/a11y.spec.ts)). Layer matrix and honest gaps: [TESTING.md](TESTING.md). |
 | **Accessibility** | WCAG 2.1 AA by design: skip-link, semantic landmarks, labelled inputs, focus-visible rings, 4.5:1+ token contrast (computed ratios documented), full keyboard journey, `aria-live` feedback, `prefers-reduced-motion` honoured in CSS and framer-motion. Evidence: [ACCESSIBILITY.md](ACCESSIBILITY.md). |
 | **Google Services** | 12 integrations in a typed, API-served catalog ([`service-catalog.ts`](packages/core/src/google/service-catalog.ts)) — **six live in production**: Gemini API (2.5-flash), Cloud Run (both services, asia-south1), Cloud Build (every deploy), Artifact Registry, Cloud Logging, Secret Manager (Gemini key mounted by reference). Maps + GA4 ready-with-key; Firebase trio planned with interfaces ready. Live evidence page at `/google-services`. Per-service contract: [GOOGLE_SERVICES.md](GOOGLE_SERVICES.md). |
-
----
 
 ## 🌱 What it does
 
@@ -70,6 +103,16 @@ Built with **Google Antigravity + Gemini**.
   (never invented numbers), with a deterministic demo mode that reuses the same math.
 - **Leaderboard & circles** — friendly competition seeded with deterministic demo entries.
 
+## Tech stack
+
+- **Language** — TypeScript strict everywhere (zero `any`), one shared [`tsconfig.base.json`](tsconfig.base.json)
+- **Web** — Next.js 15 (App Router) + React 19 + Tailwind v4
+- **API** — Express 4 + zod (`.strict()` schemas shared from the core package)
+- **Testing** — vitest + Testing Library + Playwright + axe-core
+- **Lint / format** — ESLint (typescript-eslint) + Prettier
+- **Delivery** — Docker + Cloud Build → Artifact Registry → Cloud Run (asia-south1)
+- **AI** — Gemini 2.5-flash, key mounted by reference from Secret Manager
+
 ## 🚀 Quick start
 
 Three commands, zero keys required:
@@ -96,17 +139,29 @@ npm run e2e     # Playwright: smoke, journey (incl. the quiz funnel), schemes, a
 npm run a11y    # axe-core scan across all 11 routes
 ```
 
+## Docker quick start
+
+Build context is the repo root (the Dockerfiles copy the workspace manifests) — these are
+the exact images Cloud Build ships to Cloud Run:
+
+```bash
+docker build -f apps/api/Dockerfile -t saathi-api . && docker run -p 8080:8080 saathi-api
+docker build -f apps/web/Dockerfile -t saathi-web . && docker run -p 3000:3000 saathi-web
+```
+
 ## 🧹 Code quality
 
 Every claim below is verifiable in-repo:
 
 - **Strict TypeScript everywhere** — `"strict": true` in [`tsconfig.base.json`](tsconfig.base.json); zero `any`, zero non-null `!` assertions, zero `@ts-ignore` in source.
+- **ESLint (typescript-eslint) across core, api, e2e and the web app — zero suppressions.**
+- **99% statement coverage on the domain engine** (99.36% stmts, 100% functions), measured by `vitest --coverage` in CI.
 - **Pure domain core** — calculators never throw across boundaries: [`Result<T, AppError>`](packages/core/src/result.ts) is the only error channel.
 - **Every number carries its source** — emission factors, subsidy bands and initiative figures all cite provenance inline ([`emission-factors.ts`](packages/core/src/emission-factors.ts), [`initiatives.ts`](packages/core/src/initiatives.ts)).
 - **One wire contract** — shared zod schemas ([`schemas.ts`](packages/core/src/schemas.ts), `.strict()` at request boundaries) keep web and API in lock-step; drift is a compile error.
 - **File-header convention** — every source file opens with a responsibility + boundary comment (what it owns vs what callers own).
 - **A vitest file per core module** + integration tests per API route + RTL component tests + Playwright e2e/a11y — all run by [CI on every push](.github/workflows/ci.yml).
-- **Prettier-formatted**, no stray lint suppressions, conventional naming throughout.
+- **Prettier-formatted**, conventional naming throughout.
 
 ## 📸 Screenshots
 
@@ -152,6 +207,57 @@ fallback): [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## 🗂️ Monorepo file index
 
+The tree gives the shape; the table after it tells you when to read each file.
+
+```
+carbon-saathi/
+├── packages/core/                   # Pure domain engine — deterministic, zod is the only dependency
+│   └── src/
+│       ├── emission-factors.ts      # Every India-specific factor, provenance cited inline
+│       ├── baseline.ts              # Survey → annual kg CO₂e per person
+│       ├── quick-quiz.ts            # 30-second quiz → instant estimate mapping
+│       ├── surya-ghar.ts            # Rooftop kW sizing, ₹30k/₹60k/₹78k bands, payback years
+│       ├── kusum.ts                 # PM KUSUM A/B/C routing + subsidy split
+│       ├── ev-fit.ts                # EV recommendation decision tree
+│       ├── commute.ts               # Per-mode CO₂ + cost comparison
+│       ├── actions.ts               # 12-action catalog with anti-gaming daily caps
+│       ├── gamification.ts          # Points, levels, streak shields, pledge bonus
+│       ├── badges.ts                # 8-badge catalog, table-driven award rules
+│       ├── initiatives.ts           # Mission LiFE catalog, 25+ sourced initiatives
+│       ├── schemas.ts               # Shared zod wire contract (.strict() at boundaries)
+│       ├── result.ts                # Result<T, AppError> — the only error channel
+│       ├── errors.ts                # Typed error codes shared by API and web
+│       ├── google/service-catalog.ts  # Typed Google-integration evidence catalog
+│       └── __tests__/               # 16 vitest files — one per core module
+├── apps/api/                        # Express 4 service (Cloud Run, port 8080)
+│   ├── src/server.ts                # buildApp() factory — helmet, CORS, rate limits wired here
+│   ├── src/routes/                  # 13 endpoints, zod-validated at the boundary
+│   ├── src/services/                # Gemini client, prompt boundary, grounding, user store
+│   ├── src/middleware/              # validate, token-bucket rate limit, structured logger
+│   ├── src/__tests__/               # 8 supertest integration suites
+│   └── Dockerfile                   # Multi-stage build, non-root runtime user
+├── apps/web/                        # Next.js 15 App Router (Cloud Run, port 3000)
+│   ├── app/                         # 11 routes: landing, dashboard, schemes, assistant, …
+│   ├── components/                  # UI kit + gamification widgets, RTL tests alongside
+│   ├── lib/                         # Typed api-client, resilient storage, shared contexts
+│   └── Dockerfile                   # Standalone-output image
+├── e2e/                             # Playwright: smoke, journey, schemes, assistant, a11y
+│   └── screenshots/                 # README evidence PNGs (regenerated by screenshots.spec.ts)
+├── scripts/deploy.ps1               # One-command Cloud Build → Cloud Run deploy
+├── .github/workflows/ci.yml         # Type-check, unit/integration, e2e + a11y on every push
+├── cloudbuild-api.yaml              # Cloud Build recipe → Artifact Registry → Cloud Run (API)
+├── cloudbuild-web.yaml              # Same pipeline for the web service
+├── ARCHITECTURE.md                  # Layering + data-flow diagrams
+├── SECURITY.md                      # Threat table — every mitigation links to code
+├── TESTING.md                       # Layer matrix, commands, honest gaps
+├── ACCESSIBILITY.md                 # WCAG 2.1 AA evidence
+├── GOOGLE_SERVICES.md               # Per-service integration contract
+├── EVALUATION_MAPPING.md            # Rubric axis → file-path index
+├── PROMPTS.md                       # The staged build prompts behind the repo
+├── tasks.md                         # Phase-wise plan (0–13) with status
+└── CHANGELOG.md                     # Release history (SemVer)
+```
+
 | Path | What lives here | When to read |
 |---|---|---|
 | [`packages/core/src/emission-factors.ts`](packages/core/src/emission-factors.ts) | Every India-specific factor with provenance | To audit any number the app shows |
@@ -196,6 +302,13 @@ fallback): [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Live, self-reporting version: `GET /api/google/services` rendered at `/google-services`.
 Full contract: [GOOGLE_SERVICES.md](GOOGLE_SERVICES.md).
+
+## Repository hygiene
+
+The tracked tree contains only source, tests, configuration and rubric evidence. The PNGs
+under [`e2e/screenshots/`](e2e/screenshots) are regenerated by
+[`e2e/screenshots.spec.ts`](e2e/screenshots.spec.ts); build outputs, reports, dependency
+folders and working notes are git-ignored and live outside the tree.
 
 ## 🧭 For evaluators
 

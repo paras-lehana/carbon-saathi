@@ -6,7 +6,9 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, useReducedMotion, type MotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useFadeUp } from '../../../lib/motion';
+import { SURYA_GHAR_BOUNDS } from '@carbon-saathi/core';
 import type { SuryaGharInput, SuryaGharResult } from '@carbon-saathi/core';
 import { Button } from '../../../components/ui/Button';
 import { CountUp } from '../../../components/ui/CountUp';
@@ -17,9 +19,7 @@ import { useToast } from '../../../components/ui/Toast';
 import * as api from '../../../lib/api-client';
 import { formatInr, formatKgCo2, formatNumber } from '../../../lib/format';
 import { BreakdownBar } from './BreakdownBar';
-
-const INPUT_CLASS =
-  'w-full rounded-control border border-line bg-surface px-3 py-2 text-base text-ink';
+import { INPUT_CLASS } from '../../../components/ui/input-styles';
 
 interface FormErrors {
   monthlyUnits?: string;
@@ -27,23 +27,32 @@ interface FormErrors {
   tariffPerUnit?: string;
 }
 
-/** Bounds mirror core's suryaGharInputSchema so the API never rejects us. */
+/** Bounds come from core's SURYA_GHAR_BOUNDS, so the API never rejects what we pass. */
 function validate(monthlyUnits: string, roofArea: string, tariff: string): FormErrors {
   const errors: FormErrors = {};
   const units = Number(monthlyUnits);
-  if (monthlyUnits.trim() === '' || !Number.isFinite(units) || units < 30 || units > 2000) {
-    errors.monthlyUnits = 'Enter your monthly units, between 30 and 2,000.';
+  if (
+    monthlyUnits.trim() === '' ||
+    !Number.isFinite(units) ||
+    units < SURYA_GHAR_BOUNDS.monthlyUnits.min ||
+    units > SURYA_GHAR_BOUNDS.monthlyUnits.max
+  ) {
+    errors.monthlyUnits = `Enter your monthly units, between ${SURYA_GHAR_BOUNDS.monthlyUnits.min} and ${formatNumber(SURYA_GHAR_BOUNDS.monthlyUnits.max)}.`;
   }
   if (roofArea.trim() !== '') {
     const area = Number(roofArea);
-    if (!Number.isFinite(area) || area < 80 || area > 20_000) {
-      errors.roofAreaSqFt = 'Roof area must be between 80 and 20,000 sq ft (or leave it blank).';
+    if (
+      !Number.isFinite(area) ||
+      area < SURYA_GHAR_BOUNDS.roofAreaSqFt.min ||
+      area > SURYA_GHAR_BOUNDS.roofAreaSqFt.max
+    ) {
+      errors.roofAreaSqFt = `Roof area must be between ${SURYA_GHAR_BOUNDS.roofAreaSqFt.min} and ${formatNumber(SURYA_GHAR_BOUNDS.roofAreaSqFt.max)} sq ft (or leave it blank).`;
     }
   }
   if (tariff.trim() !== '') {
     const rate = Number(tariff);
-    if (!Number.isFinite(rate) || rate <= 0 || rate > 30) {
-      errors.tariffPerUnit = 'Tariff must be between ₹0 and ₹30 per unit (or leave it blank).';
+    if (!Number.isFinite(rate) || rate <= 0 || rate > SURYA_GHAR_BOUNDS.tariffPerUnit.max) {
+      errors.tariffPerUnit = `Tariff must be between ₹0 and ₹${SURYA_GHAR_BOUNDS.tariffPerUnit.max} per unit (or leave it blank).`;
     }
   }
   return errors;
@@ -51,7 +60,6 @@ function validate(monthlyUnits: string, roofArea: string, tariff: string): FormE
 
 export function SuryaGharPanel(): React.JSX.Element {
   const { showToast } = useToast();
-  const reduceMotion = useReducedMotion();
   const [monthlyUnits, setMonthlyUnits] = useState('300');
   const [roofAreaSqFt, setRoofAreaSqFt] = useState('');
   const [tariffPerUnit, setTariffPerUnit] = useState('7');
@@ -59,10 +67,7 @@ export function SuryaGharPanel(): React.JSX.Element {
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<SuryaGharResult | null>(null);
 
-  const fadeUp: MotionProps =
-    reduceMotion === true
-      ? {}
-      : { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
+  const fadeUp = useFadeUp();
 
   const submit = async (): Promise<void> => {
     const nextErrors = validate(monthlyUnits, roofAreaSqFt, tariffPerUnit);
@@ -109,8 +114,8 @@ export function SuryaGharPanel(): React.JSX.Element {
           >
             <input
               type="number"
-              min={30}
-              max={2000}
+              min={SURYA_GHAR_BOUNDS.monthlyUnits.min}
+              max={SURYA_GHAR_BOUNDS.monthlyUnits.max}
               className={INPUT_CLASS}
               value={monthlyUnits}
               onChange={(event) => setMonthlyUnits(event.target.value)}
@@ -124,8 +129,8 @@ export function SuryaGharPanel(): React.JSX.Element {
           >
             <input
               type="number"
-              min={80}
-              max={20000}
+              min={SURYA_GHAR_BOUNDS.roofAreaSqFt.min}
+              max={SURYA_GHAR_BOUNDS.roofAreaSqFt.max}
               className={INPUT_CLASS}
               value={roofAreaSqFt}
               onChange={(event) => setRoofAreaSqFt(event.target.value)}
@@ -140,7 +145,7 @@ export function SuryaGharPanel(): React.JSX.Element {
             <input
               type="number"
               min={1}
-              max={30}
+              max={SURYA_GHAR_BOUNDS.tariffPerUnit.max}
               step="0.5"
               className={INPUT_CLASS}
               value={tariffPerUnit}
@@ -156,7 +161,11 @@ export function SuryaGharPanel(): React.JSX.Element {
       </GlassCard>
 
       {result !== null && (
-        <motion.section {...fadeUp} data-testid="scheme-result" aria-labelledby="surya-result-heading">
+        <motion.section
+          {...fadeUp}
+          data-testid="scheme-result"
+          aria-labelledby="surya-result-heading"
+        >
           <h2 id="surya-result-heading" className="m-0 mb-4 font-display text-lg font-bold">
             Your rooftop solar plan
           </h2>

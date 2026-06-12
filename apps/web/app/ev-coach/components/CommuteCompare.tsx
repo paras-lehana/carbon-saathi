@@ -14,9 +14,7 @@ import { useToast } from '../../../components/ui/Toast';
 import * as api from '../../../lib/api-client';
 import type { CommuteCompareResponse } from '../../../lib/api-client';
 import { formatKgCo2, formatNumber } from '../../../lib/format';
-
-const INPUT_CLASS =
-  'w-full rounded-control border border-line bg-surface px-3 py-2 text-base text-ink';
+import { INPUT_CLASS } from '../../../components/ui/input-styles';
 
 const MODE_LABELS: Record<CommuteCompareMode, string> = {
   'car-petrol': 'Car (petrol)',

@@ -13,7 +13,7 @@ export interface StepperProps {
 
 export function Stepper({ steps, current, className }: StepperProps): React.JSX.Element {
   return (
-    <ol
+    <ol role="list"
       aria-label="Progress"
       className={['m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0', className]
         .filter(Boolean)
@@ -34,7 +34,7 @@ export function Stepper({ steps, current, className }: StepperProps): React.JSX.
               aria-hidden="true"
               className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-bold ${
                 isCurrent
-                  ? 'border-primary bg-primary text-white'
+                  ? 'border-primary bg-primary text-on-primary'
                   : isDone
                     ? 'border-primary bg-primary-soft text-primary'
                     : 'border-line bg-surface text-ink-muted'

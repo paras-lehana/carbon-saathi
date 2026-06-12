@@ -5,7 +5,8 @@
  */
 'use client';
 
-import { motion, useReducedMotion, type MotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useFadeUp } from '../../../lib/motion';
 import type { BaselineFootprintResult, FootprintCategory } from '@carbon-saathi/core';
 import { CategoryDonut } from '../../../components/charts/CategoryDonut';
 import { ComparisonBars } from '../../../components/charts/ComparisonBars';
@@ -13,6 +14,7 @@ import { Button } from '../../../components/ui/Button';
 import { CountUp } from '../../../components/ui/CountUp';
 import { GlassCard } from '../../../components/ui/GlassCard';
 import { StatCard } from '../../../components/ui/StatCard';
+import { TipsList } from '../../../components/ui/TipsList';
 import { formatKgCo2 } from '../../../lib/format';
 
 const CATEGORY_LABELS: Record<FootprintCategory, string> = {
@@ -27,15 +29,7 @@ export interface ResultRevealProps {
 }
 
 export function ResultReveal({ baseline }: ResultRevealProps): React.JSX.Element {
-  const reduceMotion = useReducedMotion();
-  const fadeUp: MotionProps =
-    reduceMotion === true
-      ? {}
-      : {
-          initial: { opacity: 0, y: 20 },
-          animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.5 },
-        };
+  const fadeUp = useFadeUp();
 
   return (
     <motion.div {...fadeUp} data-testid="onboarding-result" className="flex flex-col gap-6">
@@ -89,16 +83,7 @@ export function ResultReveal({ baseline }: ResultRevealProps): React.JSX.Element
           <h2 id="result-tips-heading" className="m-0 mb-3 font-display text-lg font-bold">
             🍃 Your first three moves
           </h2>
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {baseline.generatedTips.map((tip) => (
-              <li key={tip} className="flex items-start gap-2 text-sm">
-                <span aria-hidden="true" className="mt-0.5 text-primary">
-                  ✓
-                </span>
-                {tip}
-              </li>
-            ))}
-          </ul>
+          <TipsList tips={baseline.generatedTips} />
         </GlassCard>
       )}
 

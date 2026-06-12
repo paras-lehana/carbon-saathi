@@ -1,0 +1,13 @@
+{
+  // Type-check project for the Playwright layer: e2e specs run in Node but
+  // evaluate snippets in the browser, so they need the DOM lib the node
+  // packages deliberately omit. Run via `npm run type-check` at the root.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "declaration": false
+  },
+  "include": ["e2e/**/*.ts", "playwright.config.ts"]
+}

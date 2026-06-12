@@ -42,6 +42,16 @@ describe('error envelopes', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_FAILED');
   });
+
+  it('rejects unknown body keys without echoing the key name', async () => {
+    // Security: zod's unrecognized_keys message lists attacker-chosen key
+    // names verbatim — the envelope must carry a fixed message instead.
+    const res = await request(testApp()).post('/api/users/bootstrap').send({ isAdmin: true });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_FAILED');
+    expect(res.body.error.message).toBe('Unknown keys in request body.');
+    expect(res.body.error.message).not.toContain('isAdmin');
+  });
 });
 
 describe('GET /api/actions/catalog', () => {

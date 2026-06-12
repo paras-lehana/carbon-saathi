@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { QUIZ_QUESTIONS } from '@carbon-saathi/core';
+import { quizAnswersSchema, QUIZ_QUESTIONS } from '@carbon-saathi/core';
 import type { QuizAnswers, QuizQuestionId } from '@carbon-saathi/core';
 import * as api from '../../lib/api-client';
 import type { QuizEstimateResponse } from '../../lib/api-client';
@@ -20,6 +20,15 @@ import { useToast } from '../ui/Toast';
 type PartialAnswers = Partial<Record<QuizQuestionId, string>>;
 
 const TOTAL = QUIZ_QUESTIONS.length;
+
+/**
+ * Runtime-validated completion check: the same core zod schema the API
+ * enforces, so no cast ever asserts that five string picks form QuizAnswers.
+ */
+function buildQuizAnswers(partial: PartialAnswers): QuizAnswers | null {
+  const parsed = quizAnswersSchema.safeParse(partial);
+  return parsed.success ? parsed.data : null;
+}
 
 export function QuizWidget(): React.JSX.Element {
   const [step, setStep] = useState(0);
@@ -37,7 +46,9 @@ export function QuizWidget(): React.JSX.Element {
   const submittingRef = useRef(false);
 
   const done = step >= TOTAL;
-  const question = done ? null : QUIZ_QUESTIONS[step];
+  // Clamped index: on the done screen the question is unused but stays a
+  // valid QuizQuestion, so no null branch ever reaches the render path.
+  const question = QUIZ_QUESTIONS[Math.min(step, TOTAL - 1)];
 
   // Focus follows the flow: each new question's prompt, then the result
   // heading — otherwise focus drops to <body> when the options unmount.
@@ -69,14 +80,20 @@ export function QuizWidget(): React.JSX.Element {
 
   const pick = useCallback(
     (optionId: string) => {
-      if (question === null || submittingRef.current) return;
+      if (submittingRef.current) return;
       const updatedAnswers: PartialAnswers = { ...answers, [question.id]: optionId };
       setAnswers(updatedAnswers);
       if (step + 1 >= TOTAL) {
+        const fullAnswers = buildQuizAnswers(updatedAnswers);
+        if (fullAnswers === null) {
+          // Five picks that fail the schema means a programming error — land
+          // on the result screen with the retry affordance rather than hang.
+          setEstimateFailed(true);
+          setStep(TOTAL);
+          return;
+        }
         submittingRef.current = true;
-        // All five keys are present once the last question is answered; the
-        // API re-validates the ids, so the cast is a typing convenience only.
-        void fetchEstimate(updatedAnswers as QuizAnswers);
+        void fetchEstimate(fullAnswers);
       } else {
         setStep(step + 1);
       }
@@ -85,7 +102,8 @@ export function QuizWidget(): React.JSX.Element {
   );
 
   const retryEstimate = useCallback(() => {
-    void fetchEstimate(answers as QuizAnswers);
+    const fullAnswers = buildQuizAnswers(answers);
+    if (fullAnswers !== null) void fetchEstimate(fullAnswers);
   }, [answers, fetchEstimate]);
 
   const goToDashboard = useCallback(async () => {
@@ -139,9 +157,6 @@ export function QuizWidget(): React.JSX.Element {
       </div>
     );
   }
-
-  // question is non-null on every non-done render; the guard keeps TS honest.
-  if (question === null) return <></>;
 
   return (
     <div className="flex flex-col gap-4">

@@ -22,7 +22,7 @@ export function BadgeWall({ earnedIds }: BadgeWallProps): React.JSX.Element {
       <h2 id="badge-wall-heading" className="m-0 font-display text-lg font-bold">
         Badges
       </h2>
-      <ul
+      <ul role="list"
         aria-labelledby="badge-wall-heading"
         className="m-0 grid list-none grid-cols-4 gap-2 p-0 sm:grid-cols-8"
       >
@@ -37,6 +37,12 @@ export function BadgeWall({ earnedIds }: BadgeWallProps): React.JSX.Element {
                 type="button"
                 aria-describedby={tooltipId}
                 aria-label={`${badge.name}${earned ? ' (earned)' : ' (locked)'}`}
+                // WCAG 1.4.13 dismissable: Escape hides the hint by dropping
+                // focus. Hoverable holds because the tooltip renders inside
+                // the trigger's bounds — pointing at it keeps group-hover on.
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') event.currentTarget.blur();
+                }}
                 className={[
                   'group relative flex w-full flex-col items-center gap-1 rounded-control p-2 text-center transition-all focus-visible:outline-primary',
                   earned ? 'bg-primary-soft ring-1 ring-primary/30' : 'bg-surface-alt',

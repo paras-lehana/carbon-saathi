@@ -1,0 +1,12 @@
+{
+  // Type-checks the test files the build config deliberately excludes —
+  // vitest transpiles without checking, so this project is what keeps test
+  // code inside the same strict-TS gate as src/.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  "exclude": []
+}

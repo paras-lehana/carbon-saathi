@@ -15,15 +15,13 @@ import {
   type SurveyErrors,
   type SurveyFormState,
 } from './survey-form';
+import { INPUT_CLASS } from '../../../components/ui/input-styles';
 
 export interface StepFieldsProps {
   form: SurveyFormState;
   errors: SurveyErrors;
   onChange: <K extends keyof SurveyFormState>(field: K, value: SurveyFormState[K]) => void;
 }
-
-const INPUT_CLASS =
-  'w-full rounded-control border border-line bg-surface px-3 py-2 text-base text-ink';
 
 export function HomeEnergyFields({ form, errors, onChange }: StepFieldsProps): React.JSX.Element {
   const electricityLabel =
@@ -55,7 +53,7 @@ export function HomeEnergyFields({ form, errors, onChange }: StepFieldsProps): R
             [
               { value: 'kwh', label: 'Units (kWh)' },
               { value: 'bill', label: 'Bill amount (₹)' },
-            ] as ReadonlyArray<{ value: ElectricityInputKind; label: string }>
+            ] satisfies ReadonlyArray<{ value: ElectricityInputKind; label: string }>
           ).map((option) => (
             <label key={option.value} className="flex items-center gap-2 text-sm">
               <input

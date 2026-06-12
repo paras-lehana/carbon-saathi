@@ -2,7 +2,8 @@
 # Build context is the REPOSITORY ROOT (monorepo workspaces need sibling
 # manifests at install time): docker build -f apps/api/Dockerfile .
 
-FROM node:22-alpine AS build
+# Digest-pinned base: reproducible builds, immune to upstream tag re-pushes.
+FROM node:22-alpine@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4 AS build
 WORKDIR /app
 
 # Manifests first so dependency layers cache independently of source edits.
@@ -19,7 +20,7 @@ RUN npm run build -w @carbon-saathi/core && npm run build -w @carbon-saathi/api 
   # Efficiency: dev toolchain (tsc, vitest, types) never ships in the image.
   && npm prune --omit=dev
 
-FROM node:22-alpine
+FROM node:22-alpine@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4
 WORKDIR /app
 ENV NODE_ENV=production
 

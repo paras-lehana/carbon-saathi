@@ -122,4 +122,18 @@ describe('POST /api/commute/compare', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_FAILED');
   });
+
+  it('returns 429 once the dedicated commute bucket is drained', async () => {
+    // Commute lookups can hit the billable Maps API, so they get their own
+    // stricter bucket. Fresh app with a tiny capacity: this test owns the
+    // whole bucket and stays clear of the 60-request global limiter.
+    const app = testApp({ commuteRateLimitMax: 3 });
+    for (let i = 0; i < 3; i += 1) {
+      const ok = await request(app).post('/api/commute/compare').send({ distanceKm: 10 });
+      expect(ok.status).toBe(200);
+    }
+    const limited = await request(app).post('/api/commute/compare').send({ distanceKm: 10 });
+    expect(limited.status).toBe(429);
+    expect(limited.body.error.code).toBe('RATE_LIMITED');
+  });
 });

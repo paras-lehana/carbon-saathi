@@ -52,18 +52,21 @@ export function Header(): React.JSX.Element {
           Carbon Saathi
         </Link>
 
-        {/* Desktop nav */}
-        <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={linkClasses(link.href)}
-              aria-current={pathname === link.href ? 'page' : undefined}
-            >
-              {link.label}
-            </Link>
-          ))}
+        {/* Desktop nav — a real list so AT reports "7 items" upfront. */}
+        <nav aria-label="Primary" className="hidden md:block">
+          <ul role="list" className="m-0 flex list-none items-center gap-1 p-0">
+            {NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className={linkClasses(link.href)}
+                  aria-current={pathname === link.href ? 'page' : undefined}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -92,7 +95,7 @@ export function Header(): React.JSX.Element {
         hidden={!menuOpen}
         className="border-t border-line px-4 pb-3 md:hidden"
       >
-        <ul className="m-0 flex list-none flex-col gap-1 p-0 pt-2">
+        <ul role="list" className="m-0 flex list-none flex-col gap-1 p-0 pt-2">
           {NAV_LINKS.map((link) => (
             <li key={link.href}>
               <Link

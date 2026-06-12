@@ -40,7 +40,7 @@ export function BreakdownBar({ title, segments, className }: BreakdownBarProps):
       </div>
       <figcaption className="mt-2">
         <span className="sr-only">{title} — total {formatInr(total)}.</span>
-        <ul className="m-0 flex list-none flex-wrap gap-x-6 gap-y-1 p-0">
+        <ul role="list" className="m-0 flex list-none flex-wrap gap-x-6 gap-y-1 p-0">
           {segments.map((segment) => (
             <li key={segment.label} className="flex items-center gap-2 text-sm">
               <span

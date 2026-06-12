@@ -1,9 +1,11 @@
 /**
  * Onboarding survey form model: string-typed field state (text inputs), the
- * per-step validators (bounds mirror core's baselineSurveySchema so the API
- * never rejects a form this module passed) and the conversion to the
- * BaselineSurveyInput payload. Pure data + functions — no React, no clock.
+ * per-step validators (bounds come from core's SURVEY_BOUNDS — the same
+ * values the API validates with, so it never rejects a form this module
+ * passed) and the conversion to the BaselineSurveyInput payload. Pure data +
+ * functions — no React, no clock.
  */
+import { SURVEY_BOUNDS } from '@carbon-saathi/core';
 import type {
   BaselineSurveyInput,
   CommuteMode,
@@ -110,40 +112,55 @@ function checkNumber(raw: string, bounds: NumberBounds): string | null {
   return null;
 }
 
-/** Bounds below mirror core schemas.ts exactly — keep both in sync. */
+/** Validates one step's fields; bounds come straight from core's SURVEY_BOUNDS. */
 export function validateStep(step: number, form: SurveyFormState): SurveyErrors {
   const errors: SurveyErrors = {};
   const fail = (field: keyof SurveyFormState, message: string | null): void => {
     if (message !== null) errors[field] = message;
   };
   if (step === 0) {
-    fail('householdSize', checkNumber(form.householdSize, { min: 1, max: 15, integer: true }));
+    fail(
+      'householdSize',
+      checkNumber(form.householdSize, { ...SURVEY_BOUNDS.householdSize, integer: true }),
+    );
     fail(
       'monthlyElectricityValue',
       checkNumber(
         form.monthlyElectricityValue,
-        // kWh capped at 5,000 / bill at ₹1,00,000 — residential sanity bounds.
-        form.electricityInputKind === 'kwh' ? { min: 1, max: 5000 } : { min: 1, max: 100_000 },
+        // Core only caps the maximum (and requires positive) — the floor of 1
+        // is this form's whole-number phrasing of "positive".
+        form.electricityInputKind === 'kwh'
+          ? { min: 1, max: SURVEY_BOUNDS.monthlyElectricityKwh.max }
+          : { min: 1, max: SURVEY_BOUNDS.monthlyBillInr.max },
       ),
     );
-    fail('lpgCylindersPerMonth', checkNumber(form.lpgCylindersPerMonth, { min: 0, max: 10 }));
-    fail('acHoursPerDay', checkNumber(form.acHoursPerDay, { min: 0, max: 24 }));
+    fail(
+      'lpgCylindersPerMonth',
+      checkNumber(form.lpgCylindersPerMonth, SURVEY_BOUNDS.lpgCylindersPerMonth),
+    );
+    fail('acHoursPerDay', checkNumber(form.acHoursPerDay, SURVEY_BOUNDS.acHoursPerDay));
   } else if (step === 1) {
-    fail('commuteKmOneWay', checkNumber(form.commuteKmOneWay, { min: 0, max: 200 }));
+    fail('commuteKmOneWay', checkNumber(form.commuteKmOneWay, SURVEY_BOUNDS.commuteKmOneWay));
     fail(
       'commuteDaysPerWeek',
-      checkNumber(form.commuteDaysPerWeek, { min: 0, max: 7, integer: true }),
+      checkNumber(form.commuteDaysPerWeek, { ...SURVEY_BOUNDS.commuteDaysPerWeek, integer: true }),
     );
     if (CAR_MODES.includes(form.commuteMode)) {
-      fail('carpoolSize', checkNumber(form.carpoolSize, { min: 1, max: 4, integer: true }));
+      fail(
+        'carpoolSize',
+        checkNumber(form.carpoolSize, { ...SURVEY_BOUNDS.carpoolSize, integer: true }),
+      );
     }
     fail(
       'flightsShortPerYear',
-      checkNumber(form.flightsShortPerYear, { min: 0, max: 100, integer: true }),
+      checkNumber(form.flightsShortPerYear, {
+        ...SURVEY_BOUNDS.flightsShortPerYear,
+        integer: true,
+      }),
     );
     fail(
       'flightsLongPerYear',
-      checkNumber(form.flightsLongPerYear, { min: 0, max: 50, integer: true }),
+      checkNumber(form.flightsLongPerYear, { ...SURVEY_BOUNDS.flightsLongPerYear, integer: true }),
     );
   } else if (step === 3) {
     if (form.stateName.trim().length > 60) errors.stateName = 'Keep this under 60 characters.';

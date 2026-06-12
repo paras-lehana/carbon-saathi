@@ -15,7 +15,6 @@ import {
   ACTION_CATALOG,
   appError,
   type ActionLogEntry,
-  type ActionLogRequest,
   type DailyPledge,
   type GamificationState,
   type UserState,
@@ -51,7 +50,7 @@ export function createActionsRouter(store: UserStore, now: () => number): Router
     '/log',
     validateBody(actionLogRequestSchema),
     asyncHandler(async (_req, res) => {
-      const body = parsedBody<ActionLogRequest>(res);
+      const body = parsedBody(res, actionLogRequestSchema);
       const user = await store.getUser(body.userId);
       if (user === undefined) {
         sendError(res, appError('NOT_FOUND', 'Unknown userId — bootstrap first.'));

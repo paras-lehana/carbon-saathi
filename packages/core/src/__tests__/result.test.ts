@@ -22,7 +22,7 @@ describe('result', () => {
 
   it('mapResult passes errors through untouched', () => {
     const result: Result<number, string> = err('nope');
-    const mapped = mapResult(result, (n) => n * 2);
+    const mapped = mapResult(result, (n: number) => n * 2);
     expect(isErr(mapped) && mapped.error).toBe('nope');
   });
 

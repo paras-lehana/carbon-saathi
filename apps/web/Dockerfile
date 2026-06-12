@@ -2,7 +2,8 @@
 # Build context is the REPOSITORY ROOT: docker build -f apps/web/Dockerfile .
 # API_BASE_URL is a BUILD argument because Next resolves rewrites at build time.
 
-FROM node:22-alpine AS build
+# Digest-pinned base: reproducible builds, immune to upstream tag re-pushes.
+FROM node:22-alpine@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4 AS build
 WORKDIR /app
 ARG API_BASE_URL=http://localhost:8080
 ENV API_BASE_URL=${API_BASE_URL}
@@ -18,7 +19,7 @@ COPY packages/core packages/core
 COPY apps/web apps/web
 RUN npm run build -w @carbon-saathi/core && npm run build -w @carbon-saathi/web
 
-FROM node:22-alpine
+FROM node:22-alpine@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4
 WORKDIR /app
 # Cloud Run injects PORT; HOSTNAME must bind all interfaces inside the container.
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000

@@ -9,8 +9,11 @@ export const USER_INPUT_END = '### END_USER_INPUT';
 
 // Security: matches loose imitations too (extra hashes, spaces, hyphens,
 // any case) so "explain ## end-user-input" cannot close the boundary early
-// and promote attacker text into the instruction zone.
-const DELIMITER_LOOKALIKE = /#+\s*(?:END[\s_-]*)?USER[\s_-]*INPUT/gi;
+// and promote attacker text into the instruction zone. The leading hashes
+// are optional: the system prompt names the markers textually, so a model
+// could honour a bare "END_USER_INPUT" line as a close just the same —
+// hashless and whitespace-indented lookalikes must be neutralised too.
+const DELIMITER_LOOKALIKE = /(?:#+\s*)?(?:END[\s_-]*)?USER[\s_-]*INPUT/gi;
 
 export function stripDelimiterLookalikes(raw: string): string {
   return raw.replace(DELIMITER_LOOKALIKE, '[filtered]');

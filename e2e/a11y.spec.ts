@@ -5,7 +5,7 @@
  */
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { gotoAndWait, seedViaDebug } from './helpers';
+import { getTheme, gotoAndWait, seedViaDebug, themeToggle } from './helpers';
 
 const ROUTES: ReadonlyArray<string> = [
   '/',
@@ -20,6 +20,40 @@ const ROUTES: ReadonlyArray<string> = [
   '/google-services',
   '/about',
 ];
+
+// Dark theme re-tints every token — colors that pass in light mode can fail
+// in dark (white-on-bright-green once shipped at ~2:1). Scan the two most
+// visited surfaces in dark as well.
+const DARK_ROUTES: ReadonlyArray<string> = ['/', '/dashboard'];
+
+for (const route of DARK_ROUTES) {
+  test(`no serious or critical axe violations on ${route} (dark theme)`, async ({
+    page,
+  }, testInfo) => {
+    if (route === '/dashboard') await seedViaDebug(page);
+    await gotoAndWait(page, route);
+    await themeToggle(page).click();
+    await expect.poll(() => getTheme(page)).toBe('dark');
+
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
+    const blocking = results.violations.filter(
+      (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+    );
+    if (blocking.length > 0) {
+      await testInfo.attach(`axe-dark${route === '/' ? '-landing' : route.replace(/\//g, '-')}`, {
+        body: JSON.stringify(blocking, null, 2),
+        contentType: 'application/json',
+      });
+    }
+    expect(
+      blocking.map(
+        (violation) => `${violation.id}: ${violation.help} (${violation.nodes.length} nodes)`,
+      ),
+    ).toEqual([]);
+  });
+}
 
 for (const route of ROUTES) {
   test(`no serious or critical axe violations on ${route}`, async ({ page }, testInfo) => {

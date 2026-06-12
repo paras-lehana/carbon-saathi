@@ -76,11 +76,6 @@ export async function gotoAndWait(page: Page, route: string): Promise<void> {
 /** Seeds a demo user through the window.__saathi debug API (fast journey path). */
 export async function seedViaDebug(page: Page): Promise<void> {
   await gotoAndWait(page, '/');
-  await page.waitForFunction(
-    () => Boolean((globalThis as unknown as { __saathi?: SaathiDebugApi }).__saathi),
-    undefined,
-    { timeout: COLD_START_TIMEOUT_MS },
-  );
   await page.evaluate(async () => {
     const api = (globalThis as unknown as { __saathi?: SaathiDebugApi }).__saathi;
     if (!api) throw new Error('window.__saathi debug API is not installed');

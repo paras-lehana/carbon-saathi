@@ -3,6 +3,7 @@
  * read process.env; everything else receives an injected AppConfig, so tests
  * build fully-configured apps without mutating global state.
  */
+import { createRequire } from 'node:module';
 
 export interface AppConfig {
   readonly port: number;
@@ -17,13 +18,27 @@ export interface AppConfig {
   readonly rateLimitWindowMs: number;
   readonly rateLimitMax: number;
   readonly assistantRateLimitMax: number;
+  readonly commuteRateLimitMax: number;
 }
 
 // Single source of truth: read once from package.json at module load, so a
-// version bump can never leave /api/health reporting a stale number. CJS
-// require resolves '../package.json' identically from src/ (tests) and dist/.
-const packageJson = require('../package.json') as { version: string };
-export const APP_VERSION = packageJson.version;
+// version bump can never leave /api/health reporting a stale number.
+// createRequire keeps '../package.json' resolving identically from src/
+// (tests) and dist/, and the runtime shape check fails startup fast — a crash
+// here beats /api/health reporting a lying version for the process lifetime.
+function readPackageVersion(): string {
+  const manifest: unknown = createRequire(__filename)('../package.json');
+  if (
+    typeof manifest === 'object' &&
+    manifest !== null &&
+    'version' in manifest &&
+    typeof manifest.version === 'string'
+  ) {
+    return manifest.version;
+  }
+  throw new Error('apps/api/package.json is missing a string "version" field');
+}
+export const APP_VERSION = readPackageVersion();
 
 const DEFAULT_PORT = 8080; // Cloud Run's conventional default when PORT is not injected
 
@@ -62,5 +77,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     rateLimitWindowMs: parsePositiveInt(env.RATE_LIMIT_WINDOW_MS, 60_000),
     rateLimitMax: parsePositiveInt(env.RATE_LIMIT_MAX, 60),
     assistantRateLimitMax: parsePositiveInt(env.ASSISTANT_RATE_LIMIT_MAX, 10),
+    // Same stricter sizing as the assistant: commute lookups can hit the
+    // billable Maps Distance Matrix API when GOOGLE_MAPS_API_KEY is set.
+    commuteRateLimitMax: parsePositiveInt(env.COMMUTE_RATE_LIMIT_MAX, 10),
   };
 }

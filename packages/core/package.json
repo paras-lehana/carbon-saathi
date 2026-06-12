@@ -1,6 +1,6 @@
 {
   "name": "@carbon-saathi/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Pure TypeScript domain engine for Carbon Saathi: emission factors, calculators, schemes, gamification.",
   "main": "./dist/index.js",
@@ -8,12 +8,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "type-check": "tsc -p tsconfig.json --noEmit"
+    "test:coverage": "vitest run --coverage",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src"
   },
   "dependencies": {
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.8",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

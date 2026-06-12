@@ -4,11 +4,14 @@
  * offline — carries verified numbers instead of model guesses.
  */
 import {
+  ACTION_CATALOG,
   adviseKusum,
   calculateEvFit,
   calculateSuryaGhar,
   EMISSION_FACTORS,
   estimateCommuteModes,
+  pointsForCo2,
+  type ActionDefinition,
   type AssistantQueryRequest,
   type UserState,
 } from '@carbon-saathi/core';
@@ -129,6 +132,20 @@ function commuteBundle(message: string): GroundingBundle | undefined {
   };
 }
 
+/** Fail fast at startup: a renamed catalog id must never ship a reply quoting stale numbers. */
+function requireAction(actionId: string): ActionDefinition {
+  const action = ACTION_CATALOG.find((entry) => entry.id === actionId);
+  if (action === undefined) throw new Error(`ACTION_CATALOG has no action '${actionId}'`);
+  return action;
+}
+
+// Resolved once at module scope: the generic demo reply quotes the SAME
+// catalog entry the engine scores, so its kg figure and points can never
+// drift from core (pointsForCo2 rounds the metro saving to 16 points — a
+// hand-typed literal here once said 15 and contradicted the engine).
+const METRO_ACTION = requireAction('metro-instead-of-car');
+const METRO_POINTS = pointsForCo2(METRO_ACTION.co2SavedKg);
+
 function baselineBundle(user: UserState | undefined): GroundingBundle {
   if (user?.baseline !== undefined) {
     const b = user.baseline;
@@ -145,27 +162,28 @@ function baselineBundle(user: UserState | undefined): GroundingBundle {
     calculatorData: {
       reference: {
         indiaPerCapitaAnnualKg: EMISSION_FACTORS.indiaPerCapitaAnnual.value,
-        metroTripSavingKgPer10Km: 1.55,
+        metroTripSavingKgPer10Km: METRO_ACTION.co2SavedKg,
       },
     },
     demoReply:
       `The average Indian footprint is about ${EMISSION_FACTORS.indiaPerCapitaAnnual.value} kg CO2e a year. ` +
       `Take the 2-minute baseline survey to see yours — then small swaps add up fast: one 10 km metro trip ` +
-      `instead of a car saves 1.55 kg CO2e (15 points).`,
+      `instead of a car saves ${METRO_ACTION.co2SavedKg} kg CO2e (${METRO_POINTS} points).`,
     usedSchemes: false,
   };
 }
 
 function buildGrounding(message: string, user: UserState | undefined): GroundingBundle {
   const lower = message.toLowerCase();
-  // Priority order matters: "solar pump" should hit KUSUM only when Surya Ghar
-  // keywords are absent, so rooftop intent is checked first.
-  if (/(surya|rooftop|solar)/.test(lower)) {
-    const bundle = suryaGharBundle(lower, user);
+  // Priority order matters: "solar pump for my farm" must reach KUSUM even
+  // though it mentions solar, so farm/pump/diesel intent is checked before
+  // the bare solar match that routes rooftop questions to Surya Ghar.
+  if (/(kusum|pump|irrigat|farmer|diesel|\bfarm\b)/.test(lower)) {
+    const bundle = kusumBundle(lower);
     if (bundle !== undefined) return bundle;
   }
-  if (/(kusum|pump|irrigat|farmer|\bfarm\b)/.test(lower)) {
-    const bundle = kusumBundle(lower);
+  if (/(surya|rooftop|solar)/.test(lower)) {
+    const bundle = suryaGharBundle(lower, user);
     if (bundle !== undefined) return bundle;
   }
   if (/(\bev\b|electric vehicle|electric car|electric scooter|electric two)/.test(lower)) {

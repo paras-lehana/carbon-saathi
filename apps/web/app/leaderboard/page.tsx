@@ -14,9 +14,7 @@ import type { LeaderboardEntry, LeaderboardResponse } from '../../lib/api-client
 import { useProfile } from '../../lib/contexts';
 import { formatNumber } from '../../lib/format';
 import { levelIconForName } from '../../lib/levels';
-
-const INPUT_CLASS =
-  'w-full rounded-control border border-line bg-surface px-3 py-2 text-base text-ink';
+import { INPUT_CLASS } from '../../components/ui/input-styles';
 
 const CIRCLE_CODE_PATTERN = /^[a-zA-Z0-9]{6}$/;
 

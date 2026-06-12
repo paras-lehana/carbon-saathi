@@ -9,7 +9,6 @@ import {
   getActionById,
   pledgeRequestSchema,
   type DailyPledge,
-  type PledgeRequest,
   type UserState,
 } from '@carbon-saathi/core';
 import { Router } from 'express';
@@ -23,7 +22,7 @@ export function createPledgeRouter(store: UserStore, now: () => number): Router 
     '/',
     validateBody(pledgeRequestSchema),
     asyncHandler(async (_req, res) => {
-      const { userId, actionId } = parsedBody<PledgeRequest>(res);
+      const { userId, actionId } = parsedBody(res, pledgeRequestSchema);
       const user = await store.getUser(userId);
       if (user === undefined) {
         sendError(res, appError('NOT_FOUND', 'Unknown userId — bootstrap first.'));

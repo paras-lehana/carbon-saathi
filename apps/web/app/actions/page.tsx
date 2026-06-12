@@ -11,9 +11,9 @@ import type { ActionCategory, ActionDefinition, ActionLogEntry } from '@carbon-s
 import { Button } from '../../components/ui/Button';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { Tabs } from '../../components/ui/Tabs';
-import { useToast } from '../../components/ui/Toast';
 import * as api from '../../lib/api-client';
 import { useGamification, useProfile } from '../../lib/contexts';
+import { useSeedDemo } from '../../lib/use-seed-demo';
 import { ActionCard } from './components/ActionCard';
 
 const CATEGORY_ORDER: ReadonlyArray<{ id: ActionCategory; label: string }> = [
@@ -29,20 +29,7 @@ function round2(n: number): number {
 
 /** Onboard-or-seed prompt shown until a profile exists (logging needs one). */
 function NoProfileNotice(): React.JSX.Element {
-  const { showToast } = useToast();
-  const [seeding, setSeeding] = useState(false);
-
-  const seedDemo = async (): Promise<void> => {
-    setSeeding(true);
-    // The debug bridge applies the profile to context itself (EmptyState pattern).
-    const user = await window.__saathi?.seedDemoUser();
-    setSeeding(false);
-    if (user === null || user === undefined) {
-      showToast('Could not create the demo profile. Is the API running?', 'error');
-    } else {
-      showToast('Demo profile ready — log away!', 'success');
-    }
-  };
+  const { seeding, seedDemo } = useSeedDemo();
 
   return (
     <GlassCard as="section" aria-labelledby="actions-noprofile-heading">
@@ -165,7 +152,7 @@ export default function ActionsPage(): React.JSX.Element {
               Nothing logged yet today — pick an action to get started.
             </p>
           ) : (
-            <ul className="m-0 mt-3 flex list-none flex-col gap-2 p-0">
+            <ul role="list" className="m-0 mt-3 flex list-none flex-col gap-2 p-0">
               {entries.map((entry, index) => (
                 <li
                   key={`${entry.loggedAtISO}-${entry.actionId}-${index}`}

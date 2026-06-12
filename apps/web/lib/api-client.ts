@@ -3,6 +3,7 @@
  * concerns — timeouts, JSON envelopes, error normalisation. Never throws:
  * every call resolves to ApiResult so pages handle one shape everywhere.
  */
+import { ALL_ERROR_CODES } from '@carbon-saathi/core';
 import type {
   ActionDefinition,
   ActionImpact,
@@ -134,15 +135,8 @@ const API_BASE = '/api'; // same-origin; next.config.ts proxies to the API serve
 // error beats an indefinite spinner.
 const REQUEST_TIMEOUT_MS = 15_000;
 
-// Mirrors core's ERROR_DEFINITIONS keys. Kept local (not a runtime core
-// import) so the client stays type-only on the workspace package.
-const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set([
-  'VALIDATION_FAILED',
-  'NOT_FOUND',
-  'RATE_LIMITED',
-  'UPSTREAM_FAILURE',
-  'INTERNAL',
-]);
+// Single source: core's closed code set, as a Set for O(1) membership checks.
+const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set(ALL_ERROR_CODES);
 
 function fallbackCodeForStatus(status: number): ErrorCode {
   if (status === 400) return 'VALIDATION_FAILED';

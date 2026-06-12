@@ -40,7 +40,9 @@ describe('users, actions and dashboard', () => {
   let app: Express;
 
   beforeEach(() => {
-    app = testApp();
+    // Frozen mid-day IST clock (12:00 IST): streaks and the daily cap reason
+    // about "today", so the suite must never straddle an IST midnight.
+    app = testApp({}, { now: () => Date.parse('2026-06-12T06:30:00.000Z') });
   });
 
   it('bootstraps a fresh user with empty gamification state', async () => {

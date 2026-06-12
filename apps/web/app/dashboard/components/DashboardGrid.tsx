@@ -7,7 +7,8 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, useReducedMotion, type MotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useFadeUp } from '../../../lib/motion';
 import type { ActionDefinition, BaselineFootprintResult } from '@carbon-saathi/core';
 import { CategoryDonut } from '../../../components/charts/CategoryDonut';
 import { BadgeWall } from '../../../components/gamification/BadgeWall';
@@ -20,6 +21,7 @@ import { CountUp } from '../../../components/ui/CountUp';
 import { GlassCard } from '../../../components/ui/GlassCard';
 import { ProgressRing } from '../../../components/ui/ProgressRing';
 import { StatCard } from '../../../components/ui/StatCard';
+import { TipsList } from '../../../components/ui/TipsList';
 import { useToast } from '../../../components/ui/Toast';
 import type { DashboardResponse, LeaderboardResponse } from '../../../lib/api-client';
 import { useGamification } from '../../../lib/contexts';
@@ -54,13 +56,9 @@ export function DashboardGrid({
 }: DashboardGridProps): React.JSX.Element {
   const { logAction } = useGamification();
   const { showToast } = useToast();
-  const reduceMotion = useReducedMotion();
   const [loggingId, setLoggingId] = useState<string | null>(null);
 
-  const fadeUp: MotionProps =
-    reduceMotion === true
-      ? {}
-      : { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
+  const fadeUp = useFadeUp();
 
   const { gamification, missions, recentActions, analogies } = dashboard;
   const level = levelProgressForPoints(gamification.points);
@@ -138,7 +136,10 @@ export function DashboardGrid({
           Points &amp; level
         </h2>
         <div className="flex flex-wrap items-center gap-4">
-          <ProgressRing pct={level.progressPct} label={`Progress to ${level.nextLevelAt === null ? 'the top level' : 'the next level'}`}>
+          <ProgressRing
+            pct={level.progressPct}
+            label={`Progress to ${level.nextLevelAt === null ? 'the top level' : 'the next level'}`}
+          >
             <span className="text-center">
               <span data-testid="dashboard-points" className="block font-display text-lg font-bold">
                 {formatNumber(gamification.points)}
@@ -292,7 +293,9 @@ export function DashboardGrid({
             ))}
           </ol>
           {leaderboard.userRank !== null && (
-            <p className="m-0 mt-3 text-xs text-ink-muted">You are ranked #{leaderboard.userRank}.</p>
+            <p className="m-0 mt-3 text-xs text-ink-muted">
+              You are ranked #{leaderboard.userRank}.
+            </p>
           )}
           <Button href="/leaderboard" variant="ghost" size="sm" className="mt-3">
             Full leaderboard
@@ -306,16 +309,7 @@ export function DashboardGrid({
           <h2 id="dash-tips-heading" className="m-0 mb-3 font-display text-lg font-bold">
             💡 Saathi tips for you
           </h2>
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {baseline.generatedTips.map((tip) => (
-              <li key={tip} className="flex items-start gap-2 text-sm">
-                <span aria-hidden="true" className="mt-0.5 text-primary">
-                  ✓
-                </span>
-                {tip}
-              </li>
-            ))}
-          </ul>
+          <TipsList tips={baseline.generatedTips} />
         </GlassCard>
       )}
     </motion.div>

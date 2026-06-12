@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ACTION_CATALOG } from '@carbon-saathi/core';
 import type { DailyPledge } from '@carbon-saathi/core';
 import * as api from '../../lib/api-client';
@@ -36,10 +36,17 @@ export function DailyPledgeCard({
   // Optimistic only until the parent refetches and the prop catches up.
   const [submittedPledge, setSubmittedPledge] = useState<DailyPledge | null>(null);
   const { showToast } = useToast();
+  const pledgedHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const today = IST_DAY_FORMATTER.format(new Date());
   const effectivePledge = submittedPledge ?? currentPledge;
   const activePledge = effectivePledge?.dateISO === today ? effectivePledge : null;
+
+  // The submit button unmounts when the pledged view replaces the form —
+  // without this, keyboard/SR focus silently drops to <body>.
+  useEffect(() => {
+    if (submittedPledge !== null) pledgedHeadingRef.current?.focus();
+  }, [submittedPledge]);
 
   const submit = useCallback(async () => {
     if (selectedId === '') return;
@@ -69,7 +76,12 @@ export function DailyPledgeCard({
           <span className="text-xl" aria-hidden="true">
             🤝
           </span>
-          <h2 id="pledge-heading" className="m-0 font-display text-lg font-bold">
+          <h2
+            id="pledge-heading"
+            ref={pledgedHeadingRef}
+            tabIndex={-1}
+            className="m-0 font-display text-lg font-bold outline-none"
+          >
             Today&apos;s pledge
           </h2>
         </div>

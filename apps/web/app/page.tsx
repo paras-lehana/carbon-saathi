@@ -7,7 +7,8 @@
  */
 'use client';
 
-import { motion, useReducedMotion, type MotionProps } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useFadeUpInView } from '../lib/motion';
 import { Button } from '../components/ui/Button';
 import { GlassCard } from '../components/ui/GlassCard';
 import { StatCard } from '../components/ui/StatCard';
@@ -156,15 +157,7 @@ function HeroScene({ animate }: { animate: boolean }): React.JSX.Element {
 export default function LandingPage(): React.JSX.Element {
   const reduceMotion = useReducedMotion();
   const animate = reduceMotion !== true;
-  // One shared entrance treatment; an empty object renders fully static.
-  const fadeUp: MotionProps = animate
-    ? {
-        initial: { opacity: 0, y: 24 },
-        whileInView: { opacity: 1, y: 0 },
-        viewport: { once: true, margin: '-60px' },
-        transition: { duration: 0.5 },
-      }
-    : {};
+  const fadeUp = useFadeUpInView();
 
   return (
     <div className="flex flex-col gap-20">
@@ -256,13 +249,13 @@ export default function LandingPage(): React.JSX.Element {
         <h2 id="how-heading" className="font-display text-[length:var(--text-2xl)] font-bold">
           How it works
         </h2>
-        <ol className="m-0 mt-6 grid list-none gap-4 p-0 sm:grid-cols-3">
+        <ol role="list" className="m-0 mt-6 grid list-none gap-4 p-0 sm:grid-cols-3">
           {HOW_IT_WORKS.map((item, index) => (
             <li key={item.title}>
               <GlassCard className="h-full">
                 <span
                   aria-hidden="true"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-white"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-primary"
                 >
                   {index + 1}
                 </span>

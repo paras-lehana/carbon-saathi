@@ -7,8 +7,6 @@ import {
   calculateSuryaGhar,
   kusumInputSchema,
   suryaGharInputSchema,
-  type KusumInput,
-  type SuryaGharInput,
 } from '@carbon-saathi/core';
 import { Router } from 'express';
 import { parsedBody, sendError, validateBody } from '../middleware/validate';
@@ -17,7 +15,7 @@ export function createSchemesRouter(): Router {
   const router = Router();
 
   router.post('/surya-ghar', validateBody(suryaGharInputSchema), (_req, res) => {
-    const result = calculateSuryaGhar(parsedBody<SuryaGharInput>(res));
+    const result = calculateSuryaGhar(parsedBody(res, suryaGharInputSchema));
     if (!result.ok) {
       sendError(res, result.error);
       return;
@@ -26,7 +24,7 @@ export function createSchemesRouter(): Router {
   });
 
   router.post('/kusum', validateBody(kusumInputSchema), (_req, res) => {
-    const result = adviseKusum(parsedBody<KusumInput>(res));
+    const result = adviseKusum(parsedBody(res, kusumInputSchema));
     if (!result.ok) {
       sendError(res, result.error);
       return;

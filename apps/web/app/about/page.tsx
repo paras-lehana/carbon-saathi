@@ -67,7 +67,7 @@ export default function AboutPage(): React.JSX.Element {
         <h2 id="about-privacy-heading" className="m-0 font-display text-lg font-bold">
           🔒 Privacy pledge
         </h2>
-        <ul className="m-0 mt-3 flex list-none flex-col gap-2 p-0">
+        <ul role="list" className="m-0 mt-3 flex list-none flex-col gap-2 p-0">
           <li className="flex items-start gap-2">
             <span aria-hidden="true" className="mt-0.5 text-primary">
               ✓

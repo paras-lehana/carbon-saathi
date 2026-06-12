@@ -1,6 +1,6 @@
 {
   "name": "@carbon-saathi/api",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Express API for Carbon Saathi: validated calculator endpoints, gamified user store, grounded Gemini assistant.",
   "main": "dist/index.js",
@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "type-check": "tsc -p tsconfig.json --noEmit"
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@carbon-saathi/core": "*",

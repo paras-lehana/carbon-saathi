@@ -31,10 +31,12 @@ export type ButtonProps = LinkButtonProps | NativeButtonProps;
 const BASE_CLASSES =
   'inline-flex items-center justify-center gap-2 rounded-control font-display font-semibold transition-colors no-underline';
 
+// text-on-primary / text-bg invert with the theme: dark mode's bright fills
+// need dark ink (white on #3ecf8e is ~2:1 — a real WCAG failure axe caught).
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: 'bg-primary text-white hover:bg-primary-hover',
+  primary: 'bg-primary text-on-primary hover:bg-primary-hover',
   ghost: 'bg-transparent text-primary border border-line hover:bg-primary-soft',
-  danger: 'bg-error text-white hover:opacity-90',
+  danger: 'bg-error text-bg hover:opacity-90',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {

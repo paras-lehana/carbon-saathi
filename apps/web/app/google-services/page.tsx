@@ -89,7 +89,7 @@ export default function GoogleServicesPage(): React.JSX.Element {
         <>
           {/* ── Summary chips ── */}
           <section aria-label="Integration status summary">
-            <ul className="m-0 flex list-none flex-wrap gap-3 p-0">
+            <ul role="list" className="m-0 flex list-none flex-wrap gap-3 p-0">
               <li className="glass-card px-4 py-2 text-sm">
                 <strong className="font-display text-primary">{data.summary.implemented}</strong>{' '}
                 implemented
@@ -110,7 +110,7 @@ export default function GoogleServicesPage(): React.JSX.Element {
 
           {/* ── Service cards ── */}
           <section aria-label="Google service integrations">
-            <ul className="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+            <ul role="list" className="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
               {data.services.map((service) => (
                 <GlassCard key={service.id} as="li" className="flex flex-col gap-3">
                   <div className="flex items-start justify-between gap-2">
@@ -126,7 +126,7 @@ export default function GoogleServicesPage(): React.JSX.Element {
                   </p>
                   <div className="text-sm">
                     <p className="m-0 mb-1 font-semibold">Code paths</p>
-                    <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                    <ul role="list" className="m-0 flex list-none flex-col gap-1 p-0">
                       {service.codePaths.map((path) => (
                         <li key={path}>
                           <code className={CODE_CLASS}>{path}</code>
@@ -137,7 +137,7 @@ export default function GoogleServicesPage(): React.JSX.Element {
                   {service.envVars.length > 0 && (
                     <div className="text-sm">
                       <p className="m-0 mb-1 font-semibold">Environment variables</p>
-                      <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+                      <ul role="list" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
                         {service.envVars.map((envVar) => (
                           <li key={envVar}>
                             <code className={CODE_CLASS}>{envVar}</code>

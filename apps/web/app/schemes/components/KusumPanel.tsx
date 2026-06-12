@@ -6,7 +6,9 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, useReducedMotion, type MotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useFadeUp } from '../../../lib/motion';
+import { KUSUM_BOUNDS } from '@carbon-saathi/core';
 import type { KusumInput, KusumResult } from '@carbon-saathi/core';
 import { Button } from '../../../components/ui/Button';
 import { Field } from '../../../components/ui/Field';
@@ -16,9 +18,7 @@ import { useToast } from '../../../components/ui/Toast';
 import * as api from '../../../lib/api-client';
 import { formatInr, formatKgCo2, formatNumber } from '../../../lib/format';
 import { BreakdownBar } from './BreakdownBar';
-
-const INPUT_CLASS =
-  'w-full rounded-control border border-line bg-surface px-3 py-2 text-base text-ink';
+import { INPUT_CLASS } from '../../../components/ui/input-styles';
 
 const COMPONENT_TITLES: Record<KusumResult['component'], string> = {
   A: 'Component A — solar plant on your land',
@@ -33,7 +33,6 @@ interface FormErrors {
 
 export function KusumPanel(): React.JSX.Element {
   const { showToast } = useToast();
-  const reduceMotion = useReducedMotion();
   const [farmerType, setFarmerType] = useState<KusumInput['farmerType']>('individual');
   const [pumpType, setPumpType] = useState<KusumInput['pumpType']>('diesel');
   const [pumpHp, setPumpHp] = useState('5');
@@ -43,21 +42,23 @@ export function KusumPanel(): React.JSX.Element {
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<KusumResult | null>(null);
 
-  const fadeUp: MotionProps =
-    reduceMotion === true
-      ? {}
-      : { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
+  const fadeUp = useFadeUp();
 
   const submit = async (): Promise<void> => {
-    // Bounds mirror core's kusumInputSchema so the API never rejects us.
+    // Bounds come from core's KUSUM_BOUNDS, so the API never rejects what we pass.
     const nextErrors: FormErrors = {};
     const hp = Number(pumpHp);
-    if (pumpHp.trim() === '' || !Number.isFinite(hp) || hp < 1 || hp > 10) {
-      nextErrors.pumpHp = 'Pump size must be between 1 and 10 HP.';
+    if (
+      pumpHp.trim() === '' ||
+      !Number.isFinite(hp) ||
+      hp < KUSUM_BOUNDS.pumpHp.min ||
+      hp > KUSUM_BOUNDS.pumpHp.max
+    ) {
+      nextErrors.pumpHp = `Pump size must be between ${KUSUM_BOUNDS.pumpHp.min} and ${KUSUM_BOUNDS.pumpHp.max} HP.`;
     }
     if (hasBarrenLand && landAcres.trim() !== '') {
       const acres = Number(landAcres);
-      if (!Number.isFinite(acres) || acres <= 0 || acres > 10_000) {
+      if (!Number.isFinite(acres) || acres <= 0 || acres > KUSUM_BOUNDS.landAcres.max) {
         nextErrors.landAcres = 'Enter your land in acres (a positive number), or leave it blank.';
       }
     }
@@ -88,8 +89,8 @@ export function KusumPanel(): React.JSX.Element {
           🚜 Find my solar pump component
         </h2>
         <p className="m-0 mb-4 text-sm text-ink-muted">
-          PM KUSUM covers about 60% of a solar pump — tell us about your farm to find your
-          component and your share.
+          PM KUSUM covers about 60% of a solar pump — tell us about your farm to find your component
+          and your share.
         </p>
         <form
           noValidate
@@ -128,8 +129,8 @@ export function KusumPanel(): React.JSX.Element {
           >
             <input
               type="number"
-              min={1}
-              max={10}
+              min={KUSUM_BOUNDS.pumpHp.min}
+              max={KUSUM_BOUNDS.pumpHp.max}
               className={INPUT_CLASS}
               value={pumpHp}
               onChange={(event) => setPumpHp(event.target.value)}
@@ -154,7 +155,7 @@ export function KusumPanel(): React.JSX.Element {
                 <input
                   type="number"
                   min={1}
-                  max={10000}
+                  max={KUSUM_BOUNDS.landAcres.max}
                   step="0.5"
                   className={INPUT_CLASS}
                   value={landAcres}
@@ -172,7 +173,11 @@ export function KusumPanel(): React.JSX.Element {
       </GlassCard>
 
       {result !== null && (
-        <motion.section {...fadeUp} data-testid="kusum-result" aria-labelledby="kusum-result-heading">
+        <motion.section
+          {...fadeUp}
+          data-testid="kusum-result"
+          aria-labelledby="kusum-result-heading"
+        >
           <h2 id="kusum-result-heading" className="m-0 mb-4 font-display text-lg font-bold">
             {COMPONENT_TITLES[result.component]}
           </h2>
@@ -224,9 +229,8 @@ export function KusumPanel(): React.JSX.Element {
               ]}
             />
             <p className="m-0 mt-3 text-sm text-ink-muted">
-              Banks typically finance most of your {formatInr(result.farmerShareInr)} share —
-              expect about {formatInr(result.subsidyBreakdown.farmerUpfrontApproxInr)} in cash
-              upfront.
+              Banks typically finance most of your {formatInr(result.farmerShareInr)} share — expect
+              about {formatInr(result.subsidyBreakdown.farmerUpfrontApproxInr)} in cash upfront.
             </p>
           </GlassCard>
 

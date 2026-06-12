@@ -12,6 +12,11 @@ export interface EmissionFactor {
   readonly source: string;
 }
 
+/**
+ * @example
+ * // Annual home-electricity footprint (kg CO2e) from a monthly meter reading:
+ * const annualKg = EMISSION_FACTORS.gridElectricity.value * monthlyKwh * 12;
+ */
 export const EMISSION_FACTORS = {
   gridElectricity: {
     value: 0.716,
