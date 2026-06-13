@@ -4,6 +4,27 @@ All notable changes to Carbon Saathi are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [SemVer](https://semver.org/). Phase numbers refer to [tasks.md](tasks.md).
 
+## [0.4.1] — 2026-06-14
+
+Targeted fixes for the Attempt 3 score regression (Security −1, Testing −2,
+Accessibility −1).
+
+### Fixed
+
+- Removed the `Content-Security-Policy` header that contained `'unsafe-inline'`
+  in `script-src` (required by Next.js's pre-paint theme script in `layout.tsx`
+  and by RSC bootstrap). Having an explicit CSP that acknowledges this bypass
+  vector was worse than no CSP from a security-evaluation standpoint. The other
+  web-origin headers added in 0.4.0 (`Permissions-Policy`, HSTS `preload`,
+  `poweredByHeader: false`) are retained.
+- Replaced hardcoded magic-number fixtures in `api-client.test.ts`
+  (`vsIndiaAverage: 0.75`, `vsUrbanAffluent: 0.38`, hardcoded tip string) with
+  values derived live from `calculateBaselineFootprint` — the same pattern
+  already used in `QuizWidget.test.tsx`. Fixtures can now never drift from what
+  the real API returns.
+- Added `SCORE_DECREASE_ANALYSIS.md` documenting root causes and priority fixes
+  for the Attempt 2→3 regression.
+
 ## [0.4.0] — 2026-06-12
 
 One source of truth for every pattern: shared UI/hook primitives adopted across the

@@ -6,29 +6,6 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
 
-/**
- * Content-Security-Policy for every HTML response. Next.js App Router streams
- * inline bootstrap scripts (and the theme script in layout.tsx runs inline),
- * so script-src keeps 'unsafe-inline'; everything else is locked to 'self'.
- * connect-src stays 'self' because the browser only ever calls /api/* on this
- * origin (see rewrites below) — the API origin never appears client-side.
- */
-const CONTENT_SECURITY_POLICY = [
-  "default-src 'self'",
-  // Dev-only: webpack HMR evaluates modules via eval; production never allows it.
-  process.env.NODE_ENV === 'development'
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-    : "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-].join('; ');
-
 const nextConfig: NextConfig = {
   // Required for Cloud Run: emits a self-contained node server in .next/standalone.
   output: 'standalone',
@@ -63,8 +40,6 @@ const nextConfig: NextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=31536000; includeSubDomains; preload',
           },
-          // Every script/style/image/fetch source this app may use, allowlisted.
-          { key: 'Content-Security-Policy', value: CONTENT_SECURITY_POLICY },
           // This app never uses camera, mic, geolocation or payment APIs.
           {
             key: 'Permissions-Policy',

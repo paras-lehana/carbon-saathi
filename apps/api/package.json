@@ -1,6 +1,6 @@
 {
   "name": "@carbon-saathi/api",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Express API for Carbon Saathi: validated calculator endpoints, gamified user store, grounded Gemini assistant.",
   "main": "dist/index.js",

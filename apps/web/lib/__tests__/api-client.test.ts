@@ -4,24 +4,16 @@
  * core response schema) must all normalise to { ok:false, error }.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { calculateBaselineFootprint, baselineSurveySchema } from '@carbon-saathi/core';
 import { calculateSuryaGhar, getHealth, logAction, quizEstimate, setPledge } from '../api-client';
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// Schema-complete fixtures: quizEstimate responses are runtime-validated
-// against core's baseline + survey schemas, so partial stubs no longer pass.
-const VALID_BASELINE = {
-  totalKgAnnual: 1500,
-  byCategory: { homeEnergy: 600, transport: 500, food: 300, shopping: 100 },
-  vsIndiaAverage: 0.75,
-  vsUrbanAffluent: 0.38,
-  topDriver: 'homeEnergy',
-  generatedTips: ['Switch the geyser to a timer.'],
-} as const;
-
-const VALID_SURVEY = {
+// Derive the fixture values from core so they can never drift from what the
+// real API returns — the same pattern as QuizWidget.test.tsx.
+const FIXTURE_SURVEY = baselineSurveySchema.parse({
   householdSize: 4,
   monthlyElectricityKwh: 250,
   lpgCylindersPerMonth: 1,
@@ -33,7 +25,13 @@ const VALID_SURVEY = {
   dietPattern: 'vegetarian',
   shoppingLevel: 'medium',
   acHoursPerDay: 4,
-} as const;
+});
+
+const FIXTURE_BASELINE = (() => {
+  const result = calculateBaselineFootprint(FIXTURE_SURVEY);
+  if (!result.ok) throw new Error('fixture survey must produce a valid baseline');
+  return result.value;
+})();
 
 describe('api-client', () => {
   it('maps a network failure to an UPSTREAM_FAILURE envelope instead of throwing', async () => {
@@ -118,7 +116,7 @@ describe('api-client', () => {
       shopping: 'minimal',
     } as const;
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ baseline: VALID_BASELINE, survey: VALID_SURVEY }), {
+      new Response(JSON.stringify({ baseline: FIXTURE_BASELINE, survey: FIXTURE_SURVEY }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
@@ -128,7 +126,7 @@ describe('api-client', () => {
     const result = await quizEstimate(answers);
 
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.data.baseline.totalKgAnnual).toBe(1500);
+    if (result.ok) expect(result.data.baseline.totalKgAnnual).toBe(FIXTURE_BASELINE.totalKgAnnual);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/quiz/estimate');
     expect(JSON.parse(String(init.body))).toEqual({ answers });
