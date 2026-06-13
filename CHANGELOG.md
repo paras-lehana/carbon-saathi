@@ -4,6 +4,27 @@ All notable changes to Carbon Saathi are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [SemVer](https://semver.org/). Phase numbers refer to [tasks.md](tasks.md).
 
+## [0.4.2] — 2026-06-14
+
+Extended runtime validation to 14 of 15 API endpoints in the web client
+(previously only 3 were validated). Every 2xx payload is now schema-checked
+before it reaches the UI; a malformed body is normalised to `UPSTREAM_FAILURE`
+rather than silently corrupting state.
+
+### Changed
+
+- Added zod response schemas for `getHealth`, `getActionCatalog`, `bootstrapUser`,
+  `logAction`, `getDashboard`, `calculateSuryaGhar`, `adviseKusum`, `calculateEvFit`,
+  `compareCommute`, `getLeaderboard`, `queryAssistant` in `apps/web/lib/api-client.ts`.
+  These compose core schemas (`streakStateSchema`, `actionLogEntrySchema`,
+  `gamificationStateSchema`, `dailyPledgeSchema`, `baselineFootprintResultSchema`,
+  `baselineSurveySchema`) with web-layer shapes defined here once.
+- Updated test mocks in `api-client.test.ts` and `QuizWidget.test.tsx` to satisfy
+  the new schemas (`level`, `newBadges`, `earnedBadges`, `pledge`, `displayName`,
+  `createdAtISO` fields added to match the API contract).
+- Only `getGoogleServices` (static read-only catalog, no user data) still uses the
+  unvalidated cast.
+
 ## [0.4.1] — 2026-06-14
 
 Targeted fixes for the Attempt 3 score regression (Security −1, Testing −2,

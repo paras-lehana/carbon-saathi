@@ -137,7 +137,19 @@ describe('QuizWidget', () => {
 
     fetchMock.mockResolvedValueOnce(
       new Response(
-        JSON.stringify({ userId: 'u1', gamification: { earnedBadges: ['quiz-whiz'] } }),
+        JSON.stringify({
+          userId: 'u1',
+          displayName: 'Demo User',
+          createdAtISO: '2026-01-01T00:00:00.000Z',
+          gamification: {
+            points: 50,
+            totalCo2SavedKg: 1.5,
+            streak: { current: 1, longest: 1, shields: 0, lastLogDateISO: null },
+            actionLog: [],
+            earnedBadges: ['quiz-whiz'],
+            pledge: null,
+          },
+        }),
         {
           status: 200,
           headers: { 'content-type': 'application/json' },

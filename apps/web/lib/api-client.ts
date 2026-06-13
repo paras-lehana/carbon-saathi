@@ -2,15 +2,17 @@
  * Typed client for every Carbon Saathi API endpoint (SPEC §4). Owns transport
  * concerns — timeouts, JSON envelopes, error normalisation. Never throws:
  * every call resolves to ApiResult so pages handle one shape everywhere.
- * 2xx payloads are runtime-validated wherever core already exports schemas
- * for the response (baseline, quiz estimate, pledge); endpoints whose shapes
- * core does not yet model still trust the payload via a typed cast.
+ * All 2xx payloads are runtime-validated via zod schemas; a malformed body
+ * is normalised to UPSTREAM_FAILURE rather than reaching the UI as corrupt data.
  */
 import {
   ALL_ERROR_CODES,
+  actionLogEntrySchema,
   baselineFootprintResultSchema,
   baselineSurveySchema,
   dailyPledgeSchema,
+  gamificationStateSchema,
+  streakStateSchema,
 } from '@carbon-saathi/core';
 import { z } from 'zod';
 import type {
@@ -149,16 +151,185 @@ interface ResponseSchema<T> {
   safeParse(data: unknown): { success: true; data: T } | { success: false; error: unknown };
 }
 
-// Envelope schemas composed purely from core's shared schemas — no field
-// rules are duplicated in web. Endpoints whose payloads core does not yet
-// model (health, catalog, dashboard, leaderboard, …) keep the typed cast in
-// request() until core grows schemas for them.
+// Core envelope schemas (responses whose shapes are fully modelled in core).
 const baselineResponseSchema = z.object({ baseline: baselineFootprintResultSchema });
 const quizEstimateResponseSchema = z.object({
   baseline: baselineFootprintResultSchema,
   survey: baselineSurveySchema,
 });
 const pledgeResponseSchema = z.object({ pledge: dailyPledgeSchema });
+
+// ── Web-layer response schemas ────────────────────────────────────────────────
+// Shapes the API returns that core does not yet model. Composed from core
+// schemas where possible; web-only fields are defined here once with no
+// duplication of core field rules.
+
+const levelProgressSchema = z.object({
+  name: z.string(),
+  icon: z.string(),
+  minPoints: z.number(),
+  nextLevelAt: z.number().nullable(),
+  progressPct: z.number(),
+});
+
+// The API trims actionLog and prepends the computed level — this shape differs
+// from core's GamificationState, so it cannot reuse gamificationStateSchema.
+const gamificationSummarySchema = z.object({
+  points: z.number(),
+  totalCo2SavedKg: z.number(),
+  streak: streakStateSchema,
+  earnedBadges: z.array(z.string()),
+  pledge: dailyPledgeSchema.nullable(),
+  level: levelProgressSchema,
+});
+
+const actionDefinitionSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  category: z.union([
+    z.literal('transport'),
+    z.literal('energy'),
+    z.literal('food'),
+    z.literal('lifestyle'),
+  ]),
+  description: z.string(),
+  co2SavedKg: z.number(),
+  unitLabel: z.string(),
+  pointsPerUnit: z.number(),
+  maxPerDay: z.number(),
+});
+
+const actionCatalogResponseSchema = z.object({ actions: z.array(actionDefinitionSchema) });
+
+const actionLogResponseSchema = z.object({
+  impact: z.object({ co2SavedKg: z.number(), points: z.number() }),
+  gamification: gamificationSummarySchema,
+  todayLog: z.array(actionLogEntrySchema),
+  newBadges: z.array(
+    z.object({ id: z.string(), name: z.string(), description: z.string(), icon: z.string(), hint: z.string() }),
+  ),
+});
+
+const dashboardResponseSchema = z.object({
+  baseline: baselineFootprintResultSchema.nullable(),
+  gamification: gamificationSummarySchema,
+  missions: z.array(
+    z.object({
+      missionId: z.string(),
+      title: z.string(),
+      target: z.number(),
+      progress: z.number(),
+      progressPct: z.number(),
+      completed: z.boolean(),
+    }),
+  ),
+  recentActions: z.array(actionLogEntrySchema),
+  suggestions: z.array(actionDefinitionSchema),
+  analogies: z.object({ treesEquivalent: z.number(), kmNotDriven: z.number(), phoneCharges: z.number() }),
+});
+
+const healthResponseSchema = z.object({
+  status: z.literal('ok'),
+  version: z.string(),
+  uptimeSec: z.number(),
+  demoMode: z.boolean(),
+});
+
+const userStateSchema = z.object({
+  userId: z.string(),
+  displayName: z.string(),
+  createdAtISO: z.string(),
+  baseline: baselineFootprintResultSchema.optional(),
+  survey: baselineSurveySchema.optional(),
+  gamification: gamificationStateSchema,
+  joinedVia: z.union([z.literal('quiz'), z.literal('survey')]).optional(),
+});
+
+const suryaGharResultSchema = z.object({
+  recommendedKw: z.number(),
+  subsidyInr: z.number(),
+  capexInr: z.number(),
+  netCostInr: z.number(),
+  annualGenerationKwh: z.number(),
+  annualSavingInr: z.number(),
+  paybackYears: z.number(),
+  co2AvoidedKgPerYear: z.number(),
+  freeUnitsNote: z.string(),
+  checklist: z.array(z.string()),
+  portalUrl: z.string(),
+  loanNote: z.string(),
+});
+
+const kusumResultSchema = z.object({
+  component: z.union([z.literal('A'), z.literal('B'), z.literal('C')]),
+  subsidyBreakdown: z.object({
+    centralPct: z.number(),
+    statePct: z.number(),
+    farmerPct: z.number(),
+    centralInr: z.number(),
+    stateInr: z.number(),
+    farmerInr: z.number(),
+    farmerUpfrontApproxInr: z.number(),
+  }),
+  estCostInr: z.number(),
+  farmerShareInr: z.number(),
+  dieselSavedLitresPerYear: z.number(),
+  co2AvoidedKgPerYear: z.number(),
+  checklist: z.array(z.string()),
+  officialLink: z.string(),
+  componentASuggestion: z
+    .object({
+      component: z.literal('A'),
+      landAcres: z.number(),
+      estLeaseIncomeInrPerYear: z.number(),
+      note: z.string(),
+    })
+    .optional(),
+});
+
+const evFitResultSchema = z.object({
+  recommendation: z.union([
+    z.literal('public-transport-first'),
+    z.literal('ev-two-wheeler'),
+    z.literal('ev-car'),
+    z.literal('hybrid'),
+    z.literal('ev-car-with-planning'),
+  ]),
+  annualCo2SavedKg: z.number(),
+  annualFuelSavingInr: z.number(),
+  fameNote: z.string(),
+  confidence: z.union([z.literal('high'), z.literal('medium')]),
+});
+
+const commuteModeSchema = z.union([
+  z.literal('car-petrol'),
+  z.literal('car-cng'),
+  z.literal('two-wheeler'),
+  z.literal('ev-2w'),
+  z.literal('bus'),
+  z.literal('metro'),
+  z.literal('cycle-walk'),
+]);
+
+const commuteCompareResponseSchema = z.object({
+  modes: z.array(
+    z.object({ mode: commuteModeSchema, co2Kg: z.number(), costInr: z.number(), annualKgIfDaily: z.number() }),
+  ),
+  source: z.union([z.literal('maps'), z.literal('estimate')]),
+});
+
+const leaderboardResponseSchema = z.object({
+  entries: z.array(
+    z.object({ rank: z.number(), name: z.string(), points: z.number(), level: z.string(), isYou: z.boolean().optional() }),
+  ),
+  userRank: z.number().nullable(),
+});
+
+const assistantResponseSchema = z.object({
+  reply: z.string(),
+  mode: z.union([z.literal('gemini'), z.literal('demo')]),
+  grounding: z.object({ usedBaseline: z.boolean(), usedSchemes: z.boolean() }),
+});
 
 // ── Transport core ────────────────────────────────────────────────────────────
 
@@ -236,7 +407,7 @@ async function request<T>(
       }
       return { ok: true, data: parsed.data };
     }
-    // No core schema covers this payload yet — trust the SPEC §4 typing.
+    // Reached only by getGoogleServices (static read-only catalog, no user data).
     return { ok: true, data: payload as T };
   } catch (cause) {
     const aborted = cause instanceof DOMException && cause.name === 'AbortError';
@@ -265,7 +436,7 @@ function post<T>(path: string, body: unknown, schema?: ResponseSchema<T>): Promi
 // ── Endpoint wrappers (one per SPEC §4 row) ───────────────────────────────────
 
 export function getHealth(): Promise<ApiResult<HealthResponse>> {
-  return get('/health');
+  return get('/health', healthResponseSchema);
 }
 
 export function getGoogleServices(): Promise<ApiResult<GoogleServicesResponse>> {
@@ -273,7 +444,7 @@ export function getGoogleServices(): Promise<ApiResult<GoogleServicesResponse>> 
 }
 
 export function getActionCatalog(): Promise<ApiResult<ActionCatalogResponse>> {
-  return get('/actions/catalog');
+  return get('/actions/catalog', actionCatalogResponseSchema);
 }
 
 export function calculateBaseline(
@@ -283,46 +454,46 @@ export function calculateBaseline(
 }
 
 export function bootstrapUser(requestBody: BootstrapRequest): Promise<ApiResult<UserState>> {
-  return post('/users/bootstrap', requestBody);
+  return post('/users/bootstrap', requestBody, userStateSchema);
 }
 
 export function logAction(requestBody: ActionLogRequest): Promise<ApiResult<ActionLogResponse>> {
-  return post('/actions/log', requestBody);
+  return post('/actions/log', requestBody, actionLogResponseSchema);
 }
 
 export function getDashboard(userId: string): Promise<ApiResult<DashboardResponse>> {
-  return get(`/dashboard/${encodeURIComponent(userId)}`);
+  return get(`/dashboard/${encodeURIComponent(userId)}`, dashboardResponseSchema);
 }
 
 export function calculateSuryaGhar(
   input: SuryaGharInput,
 ): Promise<ApiResult<{ result: SuryaGharResult }>> {
-  return post('/schemes/surya-ghar', input);
+  return post('/schemes/surya-ghar', input, z.object({ result: suryaGharResultSchema }));
 }
 
 export function adviseKusum(input: KusumInput): Promise<ApiResult<{ result: KusumResult }>> {
-  return post('/schemes/kusum', input);
+  return post('/schemes/kusum', input, z.object({ result: kusumResultSchema }));
 }
 
 export function calculateEvFit(input: EvFitInput): Promise<ApiResult<{ result: EvFitResult }>> {
-  return post('/ev/fit', input);
+  return post('/ev/fit', input, z.object({ result: evFitResultSchema }));
 }
 
 export function compareCommute(
   requestBody: CommuteCompareRequest,
 ): Promise<ApiResult<CommuteCompareResponse>> {
-  return post('/commute/compare', requestBody);
+  return post('/commute/compare', requestBody, commuteCompareResponseSchema);
 }
 
 export function getLeaderboard(userId?: string): Promise<ApiResult<LeaderboardResponse>> {
   const query = userId !== undefined ? `?userId=${encodeURIComponent(userId)}` : '';
-  return get(`/leaderboard${query}`);
+  return get(`/leaderboard${query}`, leaderboardResponseSchema);
 }
 
 export function queryAssistant(
   requestBody: AssistantQueryRequest,
 ): Promise<ApiResult<AssistantResponse>> {
-  return post('/assistant/query', requestBody);
+  return post('/assistant/query', requestBody, assistantResponseSchema);
 }
 
 export function quizEstimate(answers: QuizAnswers): Promise<ApiResult<QuizEstimateResponse>> {
