@@ -1,19 +1,25 @@
 /**
  * Actions route: the quick-log catalog grouped by category tabs plus a
- * "Today" side column with running totals. Owns catalog fetching and the
- * today-log state (seeded from the local mirror, then kept authoritative by
- * each log response); per-card stepper/submit logic lives in ActionCard.
+ * "Today" side column with running totals. Owns catalog fetching (via
+ * useApiQuery) and the today-log state (seeded from the local mirror, then
+ * kept authoritative by each log response); per-card stepper/submit logic
+ * lives in ActionCard.
  */
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { ActionCategory, ActionDefinition, ActionLogEntry } from '@carbon-saathi/core';
-import { Button } from '../../components/ui/Button';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { Tabs } from '../../components/ui/Tabs';
-import * as api from '../../lib/api-client';
-import { useGamification, useProfile } from '../../lib/contexts';
-import { useSeedDemo } from '../../lib/use-seed-demo';
+import { useCallback, useEffect, useState } from 'react';
+import { round2 } from '@carbon-saathi/core';
+import type { ActionCategory, ActionLogEntry } from '@carbon-saathi/core';
+import { ActionLogList } from '@/components/gamification/ActionLogList';
+import { Button } from '@/components/ui/Button';
+import { CardSkeleton } from '@/components/ui/CardSkeleton';
+import { RetryCard } from '@/components/ui/RetryCard';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { Tabs } from '@/components/ui/Tabs';
+import * as api from '@/lib/api-client';
+import { useGamification, useProfile } from '@/lib/contexts';
+import { useApiQuery } from '@/lib/use-api-query';
+import { useSeedDemo } from '@/lib/use-seed-demo';
 import { ActionCard } from './components/ActionCard';
 
 const CATEGORY_ORDER: ReadonlyArray<{ id: ActionCategory; label: string }> = [
@@ -23,22 +29,20 @@ const CATEGORY_ORDER: ReadonlyArray<{ id: ActionCategory; label: string }> = [
   { id: 'lifestyle', label: '🧺 Lifestyle' },
 ];
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
 /** Onboard-or-seed prompt shown until a profile exists (logging needs one). */
 function NoProfileNotice(): React.JSX.Element {
   const { seeding, seedDemo } = useSeedDemo();
 
   return (
-    <GlassCard as="section" aria-labelledby="actions-noprofile-heading">
-      <h2 id="actions-noprofile-heading" className="m-0 font-display text-lg font-bold">
-        You need a profile to log actions
-      </h2>
+    <SectionCard
+      id="actions-noprofile-heading"
+      title="You need a profile to log actions"
+      // The pitch paragraph below owns the spacing (mt-2), not the heading.
+      headingClassName="m-0 font-display text-lg font-bold"
+    >
       <p className="m-0 mt-2 text-sm text-ink-muted">
-        Browse the catalog freely — but to bank points, take the two-minute survey or jump in
-        with a demo profile.
+        Browse the catalog freely — but to bank points, take the two-minute survey or jump in with a
+        demo profile.
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         <Button href="/onboarding" size="sm">
@@ -48,30 +52,18 @@ function NoProfileNotice(): React.JSX.Element {
           {seeding ? 'Setting up…' : 'Try a demo profile'}
         </Button>
       </div>
-    </GlassCard>
+    </SectionCard>
   );
 }
 
 export default function ActionsPage(): React.JSX.Element {
   const { ready, userId } = useProfile();
   const { gamification } = useGamification();
-  const [catalog, setCatalog] = useState<ActionDefinition[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [todayLog, setTodayLog] = useState<ActionLogEntry[] | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
-    setError(null);
-    void api.getActionCatalog().then((result) => {
-      if (cancelled) return;
-      if (result.ok) setCatalog([...result.data.actions]);
-      else setError(result.error.message);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadKey]);
+  const loadCatalog = useCallback(() => api.getActionCatalog(), []);
+  const { data, error, retry } = useApiQuery(loadCatalog);
+  const catalog = data?.actions ?? null;
 
   useEffect(() => {
     // Seed today's column once from the local mirror; afterwards each log
@@ -86,8 +78,6 @@ export default function ActionsPage(): React.JSX.Element {
   const entries = todayLog ?? [];
   const todayCo2 = round2(entries.reduce((sum, entry) => sum + entry.co2SavedKg, 0));
   const todayPoints = entries.reduce((sum, entry) => sum + entry.points, 0);
-  const labelFor = (actionId: string): string =>
-    catalog?.find((action) => action.id === actionId)?.label ?? actionId;
 
   const tabs = CATEGORY_ORDER.map((category) => ({
     id: category.id,
@@ -110,8 +100,8 @@ export default function ActionsPage(): React.JSX.Element {
           Log your actions
         </h1>
         <p className="mt-2 max-w-xl text-ink-muted">
-          Every action saves real CO₂ and earns 10 points per kilogram. Daily caps keep the
-          board honest.
+          Every action saves real CO₂ and earns 10 points per kilogram. Daily caps keep the board
+          honest.
         </p>
       </div>
 
@@ -123,49 +113,32 @@ export default function ActionsPage(): React.JSX.Element {
             Action catalog
           </h2>
           {error !== null ? (
-            <GlassCard className="py-10 text-center">
-              <p className="m-0 text-ink-muted">{error}</p>
-              <Button className="mt-4" onClick={() => setReloadKey((key) => key + 1)}>
-                Try again
-              </Button>
-            </GlassCard>
+            <RetryCard message={error} onRetry={retry} />
           ) : catalog === null ? (
-            <div role="status" aria-label="Loading the action catalog">
-              <span className="sr-only">Loading the action catalog…</span>
-              <div aria-hidden="true" className="grid gap-4 sm:grid-cols-2">
-                {Array.from({ length: 4 }, (_, index) => (
-                  <div key={index} className="glass-card h-48 animate-pulse" />
-                ))}
-              </div>
-            </div>
+            <CardSkeleton
+              count={4}
+              heightClass="h-48"
+              label="Loading the action catalog"
+              containerClassName="grid gap-4 sm:grid-cols-2"
+            />
           ) : (
             <Tabs items={tabs} label="Action categories" />
           )}
         </section>
 
-        <GlassCard as="aside" aria-labelledby="actions-today-heading">
-          <h2 id="actions-today-heading" className="m-0 font-display text-lg font-bold">
-            Today
-          </h2>
+        <SectionCard
+          id="actions-today-heading"
+          title="Today"
+          as="aside"
+          // The list/empty copy below owns the spacing, not the heading.
+          headingClassName="m-0 font-display text-lg font-bold"
+        >
           {entries.length === 0 ? (
             <p className="m-0 mt-2 text-sm text-ink-muted">
               Nothing logged yet today — pick an action to get started.
             </p>
           ) : (
-            <ul role="list" className="m-0 mt-3 flex list-none flex-col gap-2 p-0">
-              {entries.map((entry, index) => (
-                <li
-                  key={`${entry.loggedAtISO}-${entry.actionId}-${index}`}
-                  className="flex items-baseline justify-between gap-2 text-sm"
-                >
-                  <span>
-                    {labelFor(entry.actionId)}
-                    {entry.quantity > 1 ? ` ×${entry.quantity}` : ''}
-                  </span>
-                  <span className="shrink-0 text-xs text-ink-muted">+{entry.points} pts</span>
-                </li>
-              ))}
-            </ul>
+            <ActionLogList entries={entries} actions={catalog ?? []} className="mt-3" />
           )}
           <dl className="m-0 mt-4 grid grid-cols-2 gap-2 border-t border-line pt-3">
             <div>
@@ -177,7 +150,7 @@ export default function ActionsPage(): React.JSX.Element {
               <dd className="m-0 font-display text-lg font-bold text-primary">{todayPoints}</dd>
             </div>
           </dl>
-        </GlassCard>
+        </SectionCard>
       </div>
     </div>
   );

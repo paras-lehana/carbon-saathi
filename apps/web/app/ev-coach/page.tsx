@@ -1,83 +1,47 @@
 /**
  * EV coach route: a four-question wizard (distance, vehicle, charging+city,
- * long trips) that calls the EV-fit calculator, plus the commute mode
- * comparison below. Owns wizard state and the recommendation card; the
- * comparison table lives in components/CommuteCompare.
+ * long trips) that calls the EV-fit calculator. Owns answer state and
+ * submission; step navigation comes from useWizard, question markup lives in
+ * components/StepFields, the verdict in components/RecommendationCard and the
+ * mode comparison table in components/CommuteCompare.
  */
 'use client';
 
-import { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { useFadeUp } from '../../lib/motion';
-import { EV_FIT_BOUNDS } from '@carbon-saathi/core';
-import type {
-  EvCurrentVehicle,
-  EvFitInput,
-  EvFitResult,
-  EvRecommendation,
-} from '@carbon-saathi/core';
-import { Button } from '../../components/ui/Button';
-import { CountUp } from '../../components/ui/CountUp';
-import { Field } from '../../components/ui/Field';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { StatCard } from '../../components/ui/StatCard';
-import { Stepper } from '../../components/ui/Stepper';
-import { useToast } from '../../components/ui/Toast';
-import * as api from '../../lib/api-client';
-import { formatInr, formatKgCo2 } from '../../lib/format';
+import { useState } from 'react';
+import type { EvCurrentVehicle, EvFitResult } from '@carbon-saathi/core';
+import { Button } from '@/components/ui/Button';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { Stepper } from '@/components/ui/Stepper';
+import { useToast } from '@/components/ui/Toast';
+import * as api from '@/lib/api-client';
+import { useWizard } from '@/lib/use-wizard';
 import { CommuteCompare } from './components/CommuteCompare';
-import { INPUT_CLASS } from '../../components/ui/input-styles';
-
-const WIZARD_STEPS = [
-  'Daily distance',
-  'Current vehicle',
-  'Charging & city',
-  'Long trips',
-] as const;
-
-const VEHICLE_OPTIONS: ReadonlyArray<{ value: EvCurrentVehicle; label: string }> = [
-  { value: 'car-petrol', label: 'Car (petrol)' },
-  { value: 'car-diesel', label: 'Car (diesel)' },
-  { value: 'two-wheeler', label: 'Two-wheeler (petrol)' },
-  { value: 'none', label: 'No vehicle yet — buying my first' },
-];
-
-const RECOMMENDATION_META: Record<EvRecommendation, { title: string; icon: string }> = {
-  'public-transport-first': { title: 'Public transport first', icon: '🚇' },
-  'ev-two-wheeler': { title: 'An electric two-wheeler fits you', icon: '🛵' },
-  'ev-car': { title: 'An electric car fits you', icon: '🚗' },
-  hybrid: { title: 'A strong hybrid fits you best (for now)', icon: '🔁' },
-  'ev-car-with-planning': { title: 'An electric car works — with charging planning', icon: '🗺️' },
-};
+import { RecommendationCard } from './components/RecommendationCard';
+import {
+  ChargingCityFields,
+  CurrentVehicleFields,
+  DailyDistanceFields,
+  LongTripsFields,
+} from './components/StepFields';
+import { WIZARD_STEPS, validateLongTrips, type CityTier } from './components/ev-fit-form';
 
 export default function EvCoachPage(): React.JSX.Element {
   const { showToast } = useToast();
-  const [step, setStep] = useState(0);
+  const { step, goToStep, isFirst, isLast, headingRef } = useWizard(WIZARD_STEPS.length);
   const [dailyKm, setDailyKm] = useState(25);
   const [currentVehicle, setCurrentVehicle] = useState<EvCurrentVehicle>('car-petrol');
   const [hasHomeCharging, setHasHomeCharging] = useState(false);
   const [hasOfficeCharging, setHasOfficeCharging] = useState(false);
-  const [cityTier, setCityTier] = useState<EvFitInput['cityTier']>(1);
+  const [cityTier, setCityTier] = useState<CityTier>(1);
   const [longTrips, setLongTrips] = useState('1');
   const [longTripsError, setLongTripsError] = useState<string | undefined>(undefined);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<EvFitResult | null>(null);
-  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
-
-  const fadeUp = useFadeUp();
-
-  const goToStep = (next: number): void => {
-    setStep(next);
-    // Land keyboard/SR users on the new step heading (onboarding pattern).
-    requestAnimationFrame(() => stepHeadingRef.current?.focus());
-  };
 
   const submit = async (): Promise<void> => {
-    const trips = Number(longTrips);
-    // Same EV_FIT_BOUNDS the API enforces — a value accepted here cannot be rejected there.
-    const { min, max } = EV_FIT_BOUNDS.longTripsPerMonth;
-    if (longTrips.trim() === '' || !Number.isInteger(trips) || trips < min || trips > max) {
-      setLongTripsError(`Enter a whole number of trips, ${min} to ${max}.`);
+    const tripsError = validateLongTrips(longTrips);
+    if (tripsError !== null) {
+      setLongTripsError(tripsError);
       return;
     }
     setLongTripsError(undefined);
@@ -87,7 +51,7 @@ export default function EvCoachPage(): React.JSX.Element {
       currentVehicle,
       hasHomeCharging,
       hasOfficeCharging,
-      longTripsPerMonth: trips,
+      longTripsPerMonth: Number(longTrips),
       cityTier,
     });
     setPending(false);
@@ -97,9 +61,6 @@ export default function EvCoachPage(): React.JSX.Element {
     }
     setResult(response.data.result);
   };
-
-  const isLastStep = step === WIZARD_STEPS.length - 1;
-  const meta = result !== null ? RECOMMENDATION_META[result.recommendation] : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -119,142 +80,48 @@ export default function EvCoachPage(): React.JSX.Element {
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          if (isLastStep) void submit();
+          if (isLast) void submit();
           else goToStep(step + 1);
         }}
       >
         <GlassCard as="section" aria-labelledby="ev-step-heading">
           <h2
             id="ev-step-heading"
-            ref={stepHeadingRef}
+            ref={headingRef}
             tabIndex={-1}
             className="m-0 mb-4 font-display text-lg font-bold"
           >
             Question {step + 1} of {WIZARD_STEPS.length}: {WIZARD_STEPS[step]}
           </h2>
 
-          {step === 0 && (
-            <div className="max-w-md">
-              <Field
-                id="ev-dailyKm"
-                label="How far do you ride or drive on a typical day?"
-                hint="Commute plus errands, both ways."
-              >
-                <input
-                  type="range"
-                  min={EV_FIT_BOUNDS.dailyKm.min}
-                  max={EV_FIT_BOUNDS.dailyKm.max}
-                  step={1}
-                  value={dailyKm}
-                  onChange={(event) => setDailyKm(Number(event.target.value))}
-                  className="w-full accent-[var(--primary)]"
-                />
-              </Field>
-              {/* The range input announces its own value — this echo is visual. */}
-              <p
-                aria-hidden="true"
-                className="m-0 mt-2 font-display text-lg font-bold text-primary"
-              >
-                {dailyKm} km / day
-              </p>
-            </div>
-          )}
-
+          {step === 0 && <DailyDistanceFields dailyKm={dailyKm} onChange={setDailyKm} />}
           {step === 1 && (
-            <div className="max-w-md">
-              <Field id="ev-currentVehicle" label="What do you mostly use today?">
-                <select
-                  className={INPUT_CLASS}
-                  value={currentVehicle}
-                  onChange={(event) => setCurrentVehicle(event.target.value as EvCurrentVehicle)}
-                >
-                  {VEHICLE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
+            <CurrentVehicleFields value={currentVehicle} onChange={setCurrentVehicle} />
           )}
-
           {step === 2 && (
-            <div className="grid gap-6 md:grid-cols-2">
-              <fieldset className="m-0 border-0 p-0">
-                <legend className="p-0 text-sm font-semibold">Where could you charge?</legend>
-                <div className="mt-2 flex flex-col gap-2">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={hasHomeCharging}
-                      onChange={(event) => setHasHomeCharging(event.target.checked)}
-                    />
-                    At home (own parking with a socket)
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={hasOfficeCharging}
-                      onChange={(event) => setHasOfficeCharging(event.target.checked)}
-                    />
-                    At the office
-                  </label>
-                </div>
-              </fieldset>
-              <fieldset className="m-0 border-0 p-0">
-                <legend className="p-0 text-sm font-semibold">Your city</legend>
-                <div className="mt-2 flex flex-col gap-2">
-                  {([1, 2, 3] as const).map((tier) => (
-                    <label key={tier} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="radio"
-                        name="ev-cityTier"
-                        value={tier}
-                        checked={cityTier === tier}
-                        onChange={() => setCityTier(tier)}
-                      />
-                      {tier === 1
-                        ? 'Tier-1 metro (Delhi, Mumbai, Bengaluru…)'
-                        : tier === 2
-                          ? 'Tier-2 city (Jaipur, Indore, Kochi…)'
-                          : 'Tier-3 city or town'}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </div>
+            <ChargingCityFields
+              hasHomeCharging={hasHomeCharging}
+              hasOfficeCharging={hasOfficeCharging}
+              cityTier={cityTier}
+              onHomeChargingChange={setHasHomeCharging}
+              onOfficeChargingChange={setHasOfficeCharging}
+              onCityTierChange={setCityTier}
+            />
           )}
-
           {step === 3 && (
-            <div className="max-w-md">
-              <Field
-                id="ev-longTrips"
-                label="Long trips per month (300+ km)"
-                hint="Highway runs change the charging math."
-                error={longTripsError}
-              >
-                <input
-                  type="number"
-                  min={EV_FIT_BOUNDS.longTripsPerMonth.min}
-                  max={EV_FIT_BOUNDS.longTripsPerMonth.max}
-                  className={INPUT_CLASS}
-                  value={longTrips}
-                  onChange={(event) => setLongTrips(event.target.value)}
-                />
-              </Field>
-            </div>
+            <LongTripsFields value={longTrips} error={longTripsError} onChange={setLongTrips} />
           )}
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
             <Button
               variant="ghost"
               type="button"
-              disabled={step === 0 || pending}
-              onClick={() => goToStep(Math.max(0, step - 1))}
+              disabled={isFirst || pending}
+              onClick={() => goToStep(step - 1)}
             >
               Back
             </Button>
-            {isLastStep ? (
+            {isLast ? (
               <Button type="submit" data-testid="ev-fit-submit" disabled={pending}>
                 {pending ? 'Checking…' : 'Get my recommendation'}
               </Button>
@@ -267,36 +134,7 @@ export default function EvCoachPage(): React.JSX.Element {
         </GlassCard>
       </form>
 
-      {result !== null && meta !== null && (
-        <motion.section {...fadeUp} aria-labelledby="ev-result-heading">
-          <GlassCard as="div">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 id="ev-result-heading" className="m-0 font-display text-lg font-bold">
-                <span aria-hidden="true">{meta.icon} </span>
-                {meta.title}
-              </h2>
-              <span className="rounded-pill bg-primary-soft px-3 py-1 text-xs font-bold text-primary">
-                {result.confidence === 'high' ? 'High confidence' : 'Medium confidence'}
-              </span>
-            </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <StatCard
-                label="CO₂ saved per year"
-                value={<CountUp value={result.annualCo2SavedKg} format={formatKgCo2} />}
-                sublabel="vs what you use today"
-                icon="🌍"
-              />
-              <StatCard
-                label="fuel money saved per year"
-                value={<CountUp value={result.annualFuelSavingInr} format={formatInr} />}
-                sublabel="running costs only, estimated"
-                icon="💰"
-              />
-            </div>
-            <p className="m-0 mt-4 text-sm text-ink-muted">{result.fameNote}</p>
-          </GlassCard>
-        </motion.section>
-      )}
+      {result !== null && <RecommendationCard result={result} />}
 
       <CommuteCompare />
     </div>

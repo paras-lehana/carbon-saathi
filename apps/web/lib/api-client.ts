@@ -2,8 +2,17 @@
  * Typed client for every Carbon Saathi API endpoint (SPEC §4). Owns transport
  * concerns — timeouts, JSON envelopes, error normalisation. Never throws:
  * every call resolves to ApiResult so pages handle one shape everywhere.
+ * 2xx payloads are runtime-validated wherever core already exports schemas
+ * for the response (baseline, quiz estimate, pledge); endpoints whose shapes
+ * core does not yet model still trust the payload via a typed cast.
  */
-import { ALL_ERROR_CODES } from '@carbon-saathi/core';
+import {
+  ALL_ERROR_CODES,
+  baselineFootprintResultSchema,
+  baselineSurveySchema,
+  dailyPledgeSchema,
+} from '@carbon-saathi/core';
+import { z } from 'zod';
 import type {
   ActionDefinition,
   ActionImpact,
@@ -67,9 +76,10 @@ export interface BaselineResponse {
 }
 
 /**
- * Server-side gamification summary (mirrors the API's summarizeGamification
- * helper): the API trims the potentially long actionLog and pre-computes the
- * level; both the log and dashboard responses serialise through this shape.
+ * Server-side gamification summary as the API serialises it (SPEC §4): the
+ * API trims the potentially long actionLog and pre-computes the level; both
+ * the log and dashboard responses use this shape. Modelled here because the
+ * web app depends only on core, never on the API package's helpers.
  */
 export interface GamificationSummary {
   points: GamificationState['points'];
@@ -127,6 +137,29 @@ export interface AssistantResponse {
   grounding: { usedBaseline: boolean; usedSchemes: boolean };
 }
 
+// ── Response validation ───────────────────────────────────────────────────────
+
+/**
+ * The minimal validating surface a 2xx body check needs — the slice of
+ * z.ZodType the transport actually calls. Typing the parameter structurally
+ * keeps it open to both plain and .transform() core schemas without coupling
+ * the signature to zod's input/output variance.
+ */
+interface ResponseSchema<T> {
+  safeParse(data: unknown): { success: true; data: T } | { success: false; error: unknown };
+}
+
+// Envelope schemas composed purely from core's shared schemas — no field
+// rules are duplicated in web. Endpoints whose payloads core does not yet
+// model (health, catalog, dashboard, leaderboard, …) keep the typed cast in
+// request() until core grows schemas for them.
+const baselineResponseSchema = z.object({ baseline: baselineFootprintResultSchema });
+const quizEstimateResponseSchema = z.object({
+  baseline: baselineFootprintResultSchema,
+  survey: baselineSurveySchema,
+});
+const pledgeResponseSchema = z.object({ pledge: dailyPledgeSchema });
+
 // ── Transport core ────────────────────────────────────────────────────────────
 
 const API_BASE = '/api'; // same-origin; next.config.ts proxies to the API server
@@ -164,7 +197,11 @@ function toApiError(payload: unknown, status: number): ApiErrorShape {
   return { code: fallbackCodeForStatus(status), message: `Request failed with status ${status}.` };
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  schema?: ResponseSchema<T>,
+): Promise<ApiResult<T>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -187,6 +224,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
         error: { code: 'UPSTREAM_FAILURE', message: 'The server returned a non-JSON response.' },
       };
     }
+    if (schema !== undefined) {
+      const parsed = schema.safeParse(payload);
+      if (!parsed.success) {
+        // Same envelope toApiError produces for transport faults: a body that
+        // fails its contract is as unusable as no body at all.
+        return {
+          ok: false,
+          error: { code: 'UPSTREAM_FAILURE', message: 'Malformed response from server.' },
+        };
+      }
+      return { ok: true, data: parsed.data };
+    }
+    // No core schema covers this payload yet — trust the SPEC §4 typing.
     return { ok: true, data: payload as T };
   } catch (cause) {
     const aborted = cause instanceof DOMException && cause.name === 'AbortError';
@@ -204,12 +254,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
   }
 }
 
-function get<T>(path: string): Promise<ApiResult<T>> {
-  return request<T>(path);
+function get<T>(path: string, schema?: ResponseSchema<T>): Promise<ApiResult<T>> {
+  return request<T>(path, undefined, schema);
 }
 
-function post<T>(path: string, body: unknown): Promise<ApiResult<T>> {
-  return request<T>(path, { method: 'POST', body: JSON.stringify(body) });
+function post<T>(path: string, body: unknown, schema?: ResponseSchema<T>): Promise<ApiResult<T>> {
+  return request<T>(path, { method: 'POST', body: JSON.stringify(body) }, schema);
 }
 
 // ── Endpoint wrappers (one per SPEC §4 row) ───────────────────────────────────
@@ -229,7 +279,7 @@ export function getActionCatalog(): Promise<ApiResult<ActionCatalogResponse>> {
 export function calculateBaseline(
   survey: BaselineSurveyInput,
 ): Promise<ApiResult<BaselineResponse>> {
-  return post('/footprint/baseline', survey);
+  return post('/footprint/baseline', survey, baselineResponseSchema);
 }
 
 export function bootstrapUser(requestBody: BootstrapRequest): Promise<ApiResult<UserState>> {
@@ -276,9 +326,9 @@ export function queryAssistant(
 }
 
 export function quizEstimate(answers: QuizAnswers): Promise<ApiResult<QuizEstimateResponse>> {
-  return post('/quiz/estimate', { answers });
+  return post('/quiz/estimate', { answers }, quizEstimateResponseSchema);
 }
 
 export function setPledge(requestBody: PledgeRequest): Promise<ApiResult<{ pledge: DailyPledge }>> {
-  return post('/pledge', requestBody);
+  return post('/pledge', requestBody, pledgeResponseSchema);
 }

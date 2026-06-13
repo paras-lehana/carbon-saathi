@@ -25,10 +25,10 @@ import type {
   SuryaGharInput,
 } from './types';
 
-// Single source of truth for user-facing numeric input bounds. Consumed by
-// BOTH the zod schemas below and the web app's client-side form validation —
-// change a bound here and every layer follows; there are no mirrored
-// literals to keep in sync.
+// Single source of truth for user-facing numeric input bounds. The zod
+// schemas below, the web app's form validation and the API's assistant
+// grounding defaults all read these objects, so changing a bound here
+// updates every consumer at once.
 export const SURVEY_BOUNDS = {
   householdSize: { min: 1, max: 15 },
   monthlyElectricityKwh: { max: 5000 },

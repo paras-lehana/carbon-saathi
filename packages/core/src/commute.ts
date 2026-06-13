@@ -5,6 +5,7 @@
  */
 import { EMISSION_FACTORS } from './emission-factors';
 import { appError, type AppError } from './errors';
+import { round2 } from './math';
 import { err, ok, type Result } from './result';
 import type { CommuteCompareMode, CommuteModeEstimate } from './types';
 
@@ -29,10 +30,6 @@ const MODE_TABLE: readonly ModeRow[] = [
   { mode: 'metro', kgPerKm: EMISSION_FACTORS.metroPerPax.value, inrPerKm: 0.4 },
   { mode: 'cycle-walk', kgPerKm: 0, inrPerKm: 0 },
 ];
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
 
 export function estimateCommuteModes(distanceKm: number): Result<CommuteModeEstimate[], AppError> {
   if (!Number.isFinite(distanceKm) || distanceKm <= 0 || distanceKm > MAX_DISTANCE_KM) {

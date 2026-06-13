@@ -5,18 +5,26 @@
  */
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Button } from '../../components/ui/Button';
-import { Field } from '../../components/ui/Field';
-import { GlassCard } from '../../components/ui/GlassCard';
-import * as api from '../../lib/api-client';
-import type { LeaderboardEntry, LeaderboardResponse } from '../../lib/api-client';
-import { useProfile } from '../../lib/contexts';
-import { formatNumber } from '../../lib/format';
-import { levelIconForName } from '../../lib/levels';
-import { INPUT_CLASS } from '../../components/ui/input-styles';
+import { useCallback, useState } from 'react';
+import { pointsForCo2 } from '@carbon-saathi/core';
+import { Button } from '@/components/ui/Button';
+import { CardSkeleton } from '@/components/ui/CardSkeleton';
+import { Field } from '@/components/ui/Field';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { RetryCard } from '@/components/ui/RetryCard';
+import * as api from '@/lib/api-client';
+import type { LeaderboardEntry } from '@/lib/api-client';
+import { useProfile } from '@/lib/contexts';
+import { formatNumber } from '@/lib/format';
+import { levelIconForName } from '@/lib/levels';
+import { useApiQuery } from '@/lib/use-api-query';
+import { INPUT_CLASS } from '@/components/ui/input-styles';
 
 const CIRCLE_CODE_PATTERN = /^[a-zA-Z0-9]{6}$/;
+
+// Derived through the engine's own exported function, so this copy can never
+// drift from core's points-per-kg contract.
+const POINTS_PER_KG = pointsForCo2(1);
 
 /**
  * Demo circle membership: the code deterministically selects which global
@@ -32,23 +40,12 @@ function filterToCircle(entries: LeaderboardEntry[], code: string): LeaderboardE
 
 export default function LeaderboardPage(): React.JSX.Element {
   const { ready, userId } = useProfile();
-  const [data, setData] = useState<LeaderboardResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState('');
   const [codeError, setCodeError] = useState<string | undefined>(undefined);
   const [circle, setCircle] = useState<string | null>(null);
 
-  const load = useCallback(async (): Promise<void> => {
-    setError(null);
-    const result = await api.getLeaderboard(userId ?? undefined);
-    if (result.ok) setData(result.data);
-    else setError(result.error.message);
-  }, [userId]);
-
-  useEffect(() => {
-    if (!ready) return;
-    void load();
-  }, [ready, load]);
+  const loadLeaderboard = useCallback(() => api.getLeaderboard(userId ?? undefined), [userId]);
+  const { data, error, retry } = useApiQuery(loadLeaderboard, { enabled: ready });
 
   const joinCircle = (): void => {
     if (!CIRCLE_CODE_PATTERN.test(codeInput)) {
@@ -60,15 +57,16 @@ export default function LeaderboardPage(): React.JSX.Element {
   };
 
   const yourEntry = data?.entries.find((entry) => entry.isYou === true);
-  const rows =
-    data === null ? [] : circle === null ? data.entries : filterToCircle(data.entries, circle);
+  const allEntries = data?.entries ?? [];
+  const rows = circle === null ? allEntries : filterToCircle(allEntries, circle);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
         <h1 className="m-0 font-display text-[length:var(--text-2xl)] font-bold">Leaderboard</h1>
         <p className="mt-2 text-ink-muted">
-          Points come from kilograms — 10 points per kg of CO₂ saved. Daily caps keep it honest.
+          Points come from kilograms — {POINTS_PER_KG} points per kg of CO₂ saved. Daily caps keep
+          it honest.
         </p>
       </div>
 
@@ -156,21 +154,14 @@ export default function LeaderboardPage(): React.JSX.Element {
           Rankings
         </h2>
         {error !== null ? (
-          <GlassCard className="py-10 text-center">
-            <p className="m-0 text-ink-muted">{error}</p>
-            <Button className="mt-4" onClick={() => void load()}>
-              Try again
-            </Button>
-          </GlassCard>
+          <RetryCard message={error} onRetry={retry} />
         ) : data === null ? (
-          <div role="status" aria-label="Loading rankings">
-            <span className="sr-only">Loading rankings…</span>
-            <div aria-hidden="true" className="flex flex-col gap-2">
-              {Array.from({ length: 5 }, (_, index) => (
-                <div key={index} className="glass-card h-12 animate-pulse" />
-              ))}
-            </div>
-          </div>
+          <CardSkeleton
+            count={5}
+            heightClass="h-12"
+            label="Loading rankings"
+            containerClassName="flex flex-col gap-2"
+          />
         ) : (
           <GlassCard className="overflow-x-auto">
             <table className="w-full min-w-[24rem] border-collapse text-sm">

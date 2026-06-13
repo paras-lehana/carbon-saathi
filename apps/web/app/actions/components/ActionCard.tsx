@@ -7,10 +7,10 @@
 
 import { useState } from 'react';
 import type { ActionDefinition, ActionLogEntry } from '@carbon-saathi/core';
-import { Button } from '../../../components/ui/Button';
-import { GlassCard } from '../../../components/ui/GlassCard';
-import { useToast } from '../../../components/ui/Toast';
-import { useGamification } from '../../../lib/contexts';
+import { Button } from '@/components/ui/Button';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { useToast } from '@/components/ui/Toast';
+import { useGamification } from '@/lib/contexts';
 
 export interface ActionCardProps {
   action: ActionDefinition;
@@ -59,7 +59,11 @@ export function ActionCard({ action, onLogged }: ActionCardProps): React.JSX.Ele
         <span className="text-ink-muted"> · up to {action.maxPerDay}/day</span>
       </p>
       <div className="mt-auto flex flex-wrap items-center gap-2">
-        <div role="group" aria-label={`Quantity of ${action.unitLabel}`} className="flex items-center gap-1">
+        <div
+          role="group"
+          aria-label={`Quantity of ${action.unitLabel}`}
+          className="flex items-center gap-1"
+        >
           <button
             type="button"
             className={STEP_BUTTON_CLASS}

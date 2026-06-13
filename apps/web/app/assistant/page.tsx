@@ -7,14 +7,17 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '../../components/ui/Button';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { useToast } from '../../components/ui/Toast';
-import * as api from '../../lib/api-client';
-import { useProfile } from '../../lib/contexts';
-import { INPUT_CLASS } from '../../components/ui/input-styles';
+import { Button } from '@/components/ui/Button';
+import { GlassCard } from '@/components/ui/GlassCard';
+import * as api from '@/lib/api-client';
+import { useProfile } from '@/lib/contexts';
+import { useApiSubmit } from '@/lib/use-api-submit';
+import { INPUT_CLASS } from '@/components/ui/input-styles';
 
-const MAX_MESSAGE_CHARS = 1000; // mirrors the API's assistantQueryRequestSchema cap
+// Client-side copy of the message cap. The authoritative bound lives in
+// assistantQueryRequestSchema (packages/core/src/schemas.ts), which the API
+// enforces — keep this in sync with it.
+const MAX_MESSAGE_CHARS = 1000;
 
 const SUGGESTIONS = [
   'How much PM Surya Ghar subsidy would I get?',
@@ -37,12 +40,12 @@ interface ChatMessage {
 
 export default function AssistantPage(): React.JSX.Element {
   const { userId, baseline } = useProfile();
-  const { showToast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: 0, role: 'assistant', text: GREETING },
   ]);
   const [input, setInput] = useState('');
-  const [pending, setPending] = useState(false);
+  // useApiSubmit owns pending and toasts failures centrally.
+  const { pending, submit } = useApiSubmit(api.queryAssistant);
   const [mode, setMode] = useState<'gemini' | 'demo' | null>(null);
   const nextIdRef = useRef(1);
   const logRef = useRef<HTMLDivElement>(null);
@@ -59,16 +62,12 @@ export default function AssistantPage(): React.JSX.Element {
     nextIdRef.current += 1;
     setMessages((current) => [...current, userMessage]);
     setInput('');
-    setPending(true);
-    const result = await api.queryAssistant({
+    const result = await submit({
       message,
       ...(userId !== null ? { userId } : {}),
     });
-    setPending(false);
-    if (!result.ok) {
-      showToast(result.error.message, 'error');
-      return;
-    }
+    // Failures are already toasted; the user's bubble stays so they can retry.
+    if (!result.ok) return;
     setMode(result.data.mode);
     const reply: ChatMessage = {
       id: nextIdRef.current,

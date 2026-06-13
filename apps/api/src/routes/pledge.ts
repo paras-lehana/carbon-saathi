@@ -23,30 +23,34 @@ export function createPledgeRouter(store: UserStore, now: () => number): Router 
     validateBody(pledgeRequestSchema),
     asyncHandler(async (_req, res) => {
       const { userId, actionId } = parsedBody(res, pledgeRequestSchema);
-      const user = await store.getUser(userId);
-      if (user === undefined) {
-        sendError(res, appError('NOT_FOUND', 'Unknown userId — bootstrap first.'));
-        return;
-      }
-      if (getActionById(actionId) === undefined) {
-        // Same contract as the log route: a bad actionId is a defective
-        // payload, not a missing resource — and never reflected back.
-        sendError(res, appError('VALIDATION_FAILED', 'Unknown actionId.'));
-        return;
-      }
-      const pledge: DailyPledge = {
-        actionId,
-        dateISO: istDayISO(now()),
-        bonusApplied: false,
-      };
-      // New object via spread: the in-memory store hands out live references,
-      // and the Firestore store will hand out snapshots — never mutate either.
-      const updated: UserState = {
-        ...user,
-        gamification: { ...user.gamification, pledge },
-      };
-      await store.saveUser(updated);
-      res.json({ pledge });
+      // Concurrency: pledge replacement rewrites the same gamification record
+      // the action-log route updates, so it joins the per-user mutation queue
+      // instead of racing it with a stale read.
+      await store.mutateUser(userId, (user) => {
+        if (user === undefined) {
+          sendError(res, appError('NOT_FOUND', 'Unknown userId — bootstrap first.'));
+          return undefined;
+        }
+        if (getActionById(actionId) === undefined) {
+          // Same contract as the log route: a bad actionId is a defective
+          // payload, not a missing resource — and never reflected back.
+          sendError(res, appError('VALIDATION_FAILED', 'Unknown actionId.'));
+          return undefined;
+        }
+        const pledge: DailyPledge = {
+          actionId,
+          dateISO: istDayISO(now()),
+          bonusApplied: false,
+        };
+        // New object via spread: the in-memory store hands out live references,
+        // and the Firestore store will hand out snapshots — never mutate either.
+        const updated: UserState = {
+          ...user,
+          gamification: { ...user.gamification, pledge },
+        };
+        res.json({ pledge });
+        return updated;
+      });
     }),
   );
   return router;

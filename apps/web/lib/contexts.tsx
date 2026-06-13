@@ -1,8 +1,9 @@
 /**
  * Client state composition: ProfileProvider (identity + baseline) and
- * GamificationProvider (points/streak/log) with localStorage mirrors and
- * API bootstrap resilience. Pages consume via useProfile()/useGamification();
- * <Providers> is the single wrapper mounted in app/layout.tsx.
+ * GamificationProvider (points/streak/log) with schema-validated localStorage
+ * mirrors and API bootstrap resilience. Pages consume via
+ * useProfile()/useGamification(); <Providers> is the single wrapper mounted
+ * in app/layout.tsx.
  */
 'use client';
 
@@ -16,25 +17,64 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { baselineFootprintResultSchema, gamificationStateSchema } from '@carbon-saathi/core';
 import type {
   BaselineFootprintResult,
   BaselineSurveyInput,
   GamificationState,
   UserState,
 } from '@carbon-saathi/core';
+import { z } from 'zod';
 import * as api from './api-client';
 import type { ActionLogResponse, ApiResult } from './api-client';
 import { attachSaathiDebug, detachSaathiDebug } from './debug';
-import { getStoredJson, removeStored, setStoredJson, STORAGE_KEYS } from './storage';
+import {
+  getStoredJson,
+  removeStored,
+  setStoredJson,
+  STORAGE_KEYS,
+  type StorageKey,
+} from './storage';
 import { ToastProvider } from '../components/ui/Toast';
 
-// ── Profile ───────────────────────────────────────────────────────────────────
+// ── Mirror validation ─────────────────────────────────────────────────────────
 
 interface StoredProfile {
   userId: string;
   displayName: string;
   baseline: BaselineFootprintResult | null;
 }
+
+// Security: localStorage is user-editable, so restored mirrors are untrusted
+// input — storage.ts only guarantees syntactically valid JSON, never shape.
+// The gamification mirror reuses core's schema; the profile and userId
+// mirrors are web-only shapes, so their schemas live here.
+const storedProfileSchema: z.ZodType<StoredProfile> = z.object({
+  userId: z.string().min(1),
+  displayName: z.string(),
+  baseline: baselineFootprintResultSchema.nullable(),
+});
+
+const storedUserIdSchema = z.string().min(1);
+
+/**
+ * Read a mirror and validate its shape. An invalid payload self-heals
+ * exactly like storage.ts's corrupt-JSON path: drop the entry so every
+ * later read is a clean miss, and fall back to null.
+ */
+function readValidatedMirror<T>(
+  key: StorageKey,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+): T | null {
+  const raw = getStoredJson<unknown>(key);
+  if (raw === null) return null;
+  const parsed = schema.safeParse(raw);
+  if (parsed.success) return parsed.data;
+  removeStored(key);
+  return null;
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
 
 type GamificationSink = (gamification: GamificationState | null) => void;
 
@@ -80,9 +120,13 @@ export function ProfileProvider({ children }: { children: ReactNode }): React.JS
 
   const bootstrap = useCallback(async (): Promise<UserState | null> => {
     // Read mirrors (not React state) so this works from any callback age.
-    const stored = getStoredJson<StoredProfile>(STORAGE_KEYS.profile);
-    const storedUserId = stored?.userId ?? getStoredJson<string>(STORAGE_KEYS.userId);
-    const storedGamification = getStoredJson<GamificationState>(STORAGE_KEYS.gamification);
+    const stored = readValidatedMirror(STORAGE_KEYS.profile, storedProfileSchema);
+    const storedUserId =
+      stored?.userId ?? readValidatedMirror(STORAGE_KEYS.userId, storedUserIdSchema);
+    const storedGamification = readValidatedMirror(
+      STORAGE_KEYS.gamification,
+      gamificationStateSchema,
+    );
     const result = await api.bootstrapUser({
       userId: storedUserId ?? undefined,
       displayName: stored?.displayName,
@@ -105,9 +149,10 @@ export function ProfileProvider({ children }: { children: ReactNode }): React.JS
   useEffect(() => {
     // Restore instantly from mirrors, then re-seed the API's in-memory store —
     // without this, a server restart would 404 every per-user call.
-    const stored = getStoredJson<StoredProfile>(STORAGE_KEYS.profile);
-    if (stored !== null && typeof stored.userId === 'string') setProfile(stored);
-    const storedUserId = stored?.userId ?? getStoredJson<string>(STORAGE_KEYS.userId);
+    const stored = readValidatedMirror(STORAGE_KEYS.profile, storedProfileSchema);
+    if (stored !== null) setProfile(stored);
+    const storedUserId =
+      stored?.userId ?? readValidatedMirror(STORAGE_KEYS.userId, storedUserIdSchema);
     if (storedUserId !== null) {
       void bootstrap().finally(() => setReady(true));
     } else {
@@ -165,7 +210,7 @@ export function GamificationProvider({ children }: { children: ReactNode }): Rea
   }, []);
 
   useEffect(() => {
-    const stored = getStoredJson<GamificationState>(STORAGE_KEYS.gamification);
+    const stored = readValidatedMirror(STORAGE_KEYS.gamification, gamificationStateSchema);
     if (stored !== null) setGamification(stored);
   }, []);
 
@@ -178,7 +223,7 @@ export function GamificationProvider({ children }: { children: ReactNode }): Rea
 
   const logAction = useCallback(
     async (actionId: string, quantity: number): Promise<ApiResult<ActionLogResponse>> => {
-      const userId = profile.userId ?? getStoredJson<string>(STORAGE_KEYS.userId);
+      const userId = profile.userId ?? readValidatedMirror(STORAGE_KEYS.userId, storedUserIdSchema);
       if (userId === null) {
         return {
           ok: false,

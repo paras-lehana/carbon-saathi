@@ -25,11 +25,9 @@ jobs:
       - name: Install workspaces
         run: npm ci --no-audit --no-fund
       - name: Dependency audit (production tree)
-        # postcss <8.5.10 (moderate GHSA-qx2v-qp2m-jg93) is a known Next.js 15
-        # build-time-only dep; next pins it exactly at 8.4.31 and npm overrides
-        # cannot reach bundled nested deps. No runtime exposure — postcss never
-        # ships in the Cloud Run image. Tracking: next upstream. Gate on high+.
-        run: npm audit --omit=dev --audit-level=high
+        # Zero known advisories: the root "overrides" forces postcss >=8.5.10
+        # under next (GHSA-qx2v-qp2m-jg93), so the gate can hold at moderate.
+        run: npm audit --omit=dev --audit-level=moderate
       - name: Type-check (strict TS across core, api, web)
         run: npm run type-check
       - name: Lint (ESLint across workspaces + e2e)

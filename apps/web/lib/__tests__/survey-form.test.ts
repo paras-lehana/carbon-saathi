@@ -10,7 +10,7 @@ import {
   toBaselineSurveyInput,
   validateAllSteps,
   type SurveyFormState,
-} from '../../app/onboarding/components/survey-form';
+} from '@/app/onboarding/components/survey-form';
 
 describe('toBaselineSurveyInput', () => {
   it('maps a valid metro form exactly — no carpoolSize for non-car modes', () => {
@@ -51,9 +51,9 @@ describe('toBaselineSurveyInput', () => {
     expect(baselineSurveySchema.safeParse(payload).success).toBe(true);
 
     // The same number under the kWh kind is rejected — the bound follows the kind.
-    expect(
-      validateAllSteps({ ...form, electricityInputKind: 'kwh' }).monthlyElectricityValue,
-    ).toBe('Enter a value between 1 and 5000.');
+    expect(validateAllSteps({ ...form, electricityInputKind: 'kwh' }).monthlyElectricityValue).toBe(
+      'Enter a value between 1 and 5000.',
+    );
   });
 
   it('spreads carpoolSize only for car modes', () => {

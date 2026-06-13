@@ -26,7 +26,7 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-export function calculateSuryaGhar(input: SuryaGharInput): Result<SuryaGharResult, AppError> {
+function validateSuryaGharInput(input: SuryaGharInput, tariff: number): Result<void, AppError> {
   if (
     !Number.isFinite(input.monthlyUnits) ||
     input.monthlyUnits < 30 ||
@@ -37,10 +37,16 @@ export function calculateSuryaGhar(input: SuryaGharInput): Result<SuryaGharResul
   if (input.roofAreaSqFt !== undefined && input.roofAreaSqFt < 80) {
     return err(appError('VALIDATION_FAILED', 'roofAreaSqFt must be at least 80'));
   }
-  const tariff = input.tariffPerUnit ?? DEFAULT_TARIFF_INR_PER_UNIT;
   if (!Number.isFinite(tariff) || tariff <= 0 || tariff > 30) {
     return err(appError('VALIDATION_FAILED', 'tariffPerUnit must be between 0 and 30'));
   }
+  return ok(undefined);
+}
+
+export function calculateSuryaGhar(input: SuryaGharInput): Result<SuryaGharResult, AppError> {
+  const tariff = input.tariffPerUnit ?? DEFAULT_TARIFF_INR_PER_UNIT;
+  const validation = validateSuryaGharInput(input, tariff);
+  if (!validation.ok) return err(validation.error);
 
   let recommendedKw = Math.min(
     MAX_RESIDENTIAL_KW,

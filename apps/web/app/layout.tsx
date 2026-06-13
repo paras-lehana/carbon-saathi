@@ -37,11 +37,7 @@ export const metadata: Metadata = {
 // input ever reaches this dangerouslySetInnerHTML.
 const THEME_BOOTSTRAP_SCRIPT = `(function(){try{var r=localStorage.getItem('carbon-saathi:theme');var t=r?JSON.parse(r):null;if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='light';}})();`;
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}): React.JSX.Element {
+export default function RootLayout({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
     // suppressHydrationWarning: data-theme is set client-side pre-paint, so
     // the server-rendered <html> attributes intentionally differ.

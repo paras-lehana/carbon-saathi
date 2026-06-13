@@ -1,24 +1,28 @@
 /**
  * PM KUSUM tab: the farmer form (type, pump, HP, land) and the advisor
  * result — component routing, the 30/30/40 subsidy split, diesel and CO₂
- * savings and the checklist. Owns form state; all math comes from the API.
+ * savings and the checklist. Owns form state; validation comes from core's
+ * shared zod schema and all math from the API.
  */
 'use client';
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useFadeUp } from '../../../lib/motion';
-import { KUSUM_BOUNDS } from '@carbon-saathi/core';
+import { useFadeUp } from '@/lib/motion';
+import { KUSUM_BOUNDS, kusumInputSchema } from '@carbon-saathi/core';
 import type { KusumInput, KusumResult } from '@carbon-saathi/core';
-import { Button } from '../../../components/ui/Button';
-import { Field } from '../../../components/ui/Field';
-import { GlassCard } from '../../../components/ui/GlassCard';
-import { StatCard } from '../../../components/ui/StatCard';
-import { useToast } from '../../../components/ui/Toast';
-import * as api from '../../../lib/api-client';
-import { formatInr, formatKgCo2, formatNumber } from '../../../lib/format';
+import { Button } from '@/components/ui/Button';
+import { Field } from '@/components/ui/Field';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { SchemeChecklistCard } from '@/components/ui/SchemeChecklistCard';
+import { SchemePortalLink } from '@/components/ui/SchemePortalLink';
+import { StatCard } from '@/components/ui/StatCard';
+import * as api from '@/lib/api-client';
+import { fieldErrorsFromZod } from '@/lib/form-validation';
+import { formatInr, formatKgCo2, formatNumber } from '@/lib/format';
+import { useApiSubmit } from '@/lib/use-api-submit';
 import { BreakdownBar } from './BreakdownBar';
-import { INPUT_CLASS } from '../../../components/ui/input-styles';
+import { INPUT_CLASS } from '@/components/ui/input-styles';
 
 const COMPONENT_TITLES: Record<KusumResult['component'], string> = {
   A: 'Component A — solar plant on your land',
@@ -26,60 +30,43 @@ const COMPONENT_TITLES: Record<KusumResult['component'], string> = {
   C: 'Component C — solarise your grid pump',
 };
 
-interface FormErrors {
-  pumpHp?: string;
-  landAcres?: string;
-}
+const FARMER_TYPE_OPTIONS: ReadonlyArray<{ value: KusumInput['farmerType']; label: string }> = [
+  { value: 'individual', label: 'Individual farmer' },
+  { value: 'group', label: 'Group / FPO / cooperative' },
+];
+
+const PUMP_TYPE_OPTIONS: ReadonlyArray<{ value: KusumInput['pumpType']; label: string }> = [
+  { value: 'diesel', label: 'Diesel pump' },
+  { value: 'grid', label: 'Grid-connected electric pump' },
+  { value: 'none', label: 'No pump yet' },
+];
 
 export function KusumPanel(): React.JSX.Element {
-  const { showToast } = useToast();
   const [farmerType, setFarmerType] = useState<KusumInput['farmerType']>('individual');
   const [pumpType, setPumpType] = useState<KusumInput['pumpType']>('diesel');
   const [pumpHp, setPumpHp] = useState('5');
   const [hasBarrenLand, setHasBarrenLand] = useState(false);
   const [landAcres, setLandAcres] = useState('');
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [pending, setPending] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<KusumResult | null>(null);
+  const { pending, submit } = useApiSubmit(api.adviseKusum);
 
   const fadeUp = useFadeUp();
 
-  const submit = async (): Promise<void> => {
-    // Bounds come from core's KUSUM_BOUNDS, so the API never rejects what we pass.
-    const nextErrors: FormErrors = {};
-    const hp = Number(pumpHp);
-    if (
-      pumpHp.trim() === '' ||
-      !Number.isFinite(hp) ||
-      hp < KUSUM_BOUNDS.pumpHp.min ||
-      hp > KUSUM_BOUNDS.pumpHp.max
-    ) {
-      nextErrors.pumpHp = `Pump size must be between ${KUSUM_BOUNDS.pumpHp.min} and ${KUSUM_BOUNDS.pumpHp.max} HP.`;
-    }
-    if (hasBarrenLand && landAcres.trim() !== '') {
-      const acres = Number(landAcres);
-      if (!Number.isFinite(acres) || acres <= 0 || acres > KUSUM_BOUNDS.landAcres.max) {
-        nextErrors.landAcres = 'Enter your land in acres (a positive number), or leave it blank.';
-      }
-    }
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
-
+  const handleSubmit = async (): Promise<void> => {
     const input: KusumInput = {
       farmerType,
       pumpType,
-      pumpHp: hp,
+      pumpHp: Number(pumpHp),
       hasBarrenLand,
       ...(hasBarrenLand && landAcres.trim() !== '' ? { landAcres: Number(landAcres) } : {}),
     };
-    setPending(true);
-    const response = await api.adviseKusum(input);
-    setPending(false);
-    if (!response.ok) {
-      showToast(response.error.message, 'error');
-      return;
-    }
-    setResult(response.data.result);
+    // Same schema the API runs, so an input accepted here cannot be rejected there.
+    const nextErrors = fieldErrorsFromZod(kusumInputSchema, input);
+    setErrors(nextErrors ?? {});
+    if (nextErrors !== null) return;
+    const response = await submit(input);
+    if (response.ok) setResult(response.data.result);
   };
 
   return (
@@ -96,7 +83,7 @@ export function KusumPanel(): React.JSX.Element {
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            void submit();
+            void handleSubmit();
           }}
           className="grid gap-4 md:grid-cols-2"
         >
@@ -104,21 +91,38 @@ export function KusumPanel(): React.JSX.Element {
             <select
               className={INPUT_CLASS}
               value={farmerType}
-              onChange={(event) => setFarmerType(event.target.value as KusumInput['farmerType'])}
+              onChange={(event) => {
+                // A <select> only emits listed values — the lookup narrows the
+                // string to the union without a cast.
+                const selected = FARMER_TYPE_OPTIONS.find(
+                  (option) => option.value === event.target.value,
+                );
+                setFarmerType((current) => selected?.value ?? current);
+              }}
             >
-              <option value="individual">Individual farmer</option>
-              <option value="group">Group / FPO / cooperative</option>
+              {FARMER_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </Field>
           <Field id="kusum-pumpType" label="Current irrigation pump">
             <select
               className={INPUT_CLASS}
               value={pumpType}
-              onChange={(event) => setPumpType(event.target.value as KusumInput['pumpType'])}
+              onChange={(event) => {
+                const selected = PUMP_TYPE_OPTIONS.find(
+                  (option) => option.value === event.target.value,
+                );
+                setPumpType((current) => selected?.value ?? current);
+              }}
             >
-              <option value="diesel">Diesel pump</option>
-              <option value="grid">Grid-connected electric pump</option>
-              <option value="none">No pump yet</option>
+              {PUMP_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </Field>
           <Field
@@ -244,34 +248,13 @@ export function KusumPanel(): React.JSX.Element {
             </GlassCard>
           )}
 
-          <GlassCard as="div" className="mt-4">
-            <h3 className="m-0 mb-3 font-display text-base font-bold">How to apply</h3>
-            <ol className="m-0 flex list-none flex-col gap-2 p-0">
-              {result.checklist.map((step, index) => (
-                <li key={step} className="flex items-start gap-3 text-sm">
-                  <span
-                    aria-hidden="true"
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary"
-                  >
-                    {index + 1}
-                  </span>
-                  {step}
-                </li>
-              ))}
-            </ol>
-            <p className="m-0 mt-4 text-sm">
-              Official scheme details:{' '}
-              <a
-                href={result.officialLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-primary underline"
-              >
-                mnre.gov.in
-                <span className="sr-only"> (opens in a new tab)</span>
-              </a>
-            </p>
-          </GlassCard>
+          <SchemeChecklistCard title="How to apply" steps={result.checklist}>
+            <SchemePortalLink
+              prefix="Official scheme details:"
+              href={result.officialLink}
+              label="mnre.gov.in"
+            />
+          </SchemeChecklistCard>
         </motion.section>
       )}
 

@@ -3,11 +3,12 @@
  * with the Indian average and urban-affluent benchmarks. Pure SVG with
  * visible value labels; an sr-only summary carries the comparison for AT.
  */
-import { formatKgCo2 } from '../../lib/format';
+import { EMISSION_FACTORS } from '@carbon-saathi/core';
+import { formatKgCo2 } from '@/lib/format';
 
 export interface ComparisonBarsProps {
   yourKg: number;
-  /** Defaults mirror core EMISSION_FACTORS benchmarks. */
+  /** Both benchmarks default to core's EMISSION_FACTORS values (kg CO₂e/yr). */
   indiaAverageKg?: number;
   urbanAffluentKg?: number;
   className?: string;
@@ -17,11 +18,15 @@ const BAR_HEIGHT = 28;
 const ROW_GAP = 16;
 const LABEL_WIDTH = 130;
 const CHART_WIDTH = 520;
+// Width reserved right of the longest bar so its value label never clips.
+const VALUE_LABEL_WIDTH = 90;
+// Breathing room between a bar and the text on either side of it.
+const TEXT_GAP = 8;
 
 export function ComparisonBars({
   yourKg,
-  indiaAverageKg = 2000, // kg CO₂e/yr — core EMISSION_FACTORS.indiaPerCapitaAnnual
-  urbanAffluentKg = 4000, // kg CO₂e/yr — core EMISSION_FACTORS.indiaUrbanAffluentAnnual
+  indiaAverageKg = EMISSION_FACTORS.indiaPerCapitaAnnual.value,
+  urbanAffluentKg = EMISSION_FACTORS.indiaUrbanAffluentAnnual.value,
   className,
 }: ComparisonBarsProps): React.JSX.Element {
   const rows = [
@@ -30,7 +35,7 @@ export function ComparisonBars({
     { label: 'Urban affluent', value: urbanAffluentKg, color: 'var(--accent)' },
   ];
   const maxValue = Math.max(...rows.map((row) => row.value), 1); // guard ÷0
-  const barAreaWidth = CHART_WIDTH - LABEL_WIDTH - 90; // room for value labels
+  const barAreaWidth = CHART_WIDTH - LABEL_WIDTH - VALUE_LABEL_WIDTH;
   const height = rows.length * (BAR_HEIGHT + ROW_GAP);
 
   return (
@@ -46,7 +51,7 @@ export function ComparisonBars({
           return (
             <g key={row.label}>
               <text
-                x={LABEL_WIDTH - 8}
+                x={LABEL_WIDTH - TEXT_GAP}
                 y={y + BAR_HEIGHT / 2}
                 textAnchor="end"
                 dominantBaseline="central"
@@ -64,7 +69,7 @@ export function ComparisonBars({
                 fill={row.color}
               />
               <text
-                x={LABEL_WIDTH + Math.max(2, width) + 8}
+                x={LABEL_WIDTH + Math.max(2, width) + TEXT_GAP}
                 y={y + BAR_HEIGHT / 2}
                 dominantBaseline="central"
                 fill="var(--text)"

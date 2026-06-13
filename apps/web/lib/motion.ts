@@ -13,7 +13,11 @@ export function useFadeUp(): MotionProps {
   const reduceMotion = useReducedMotion();
   return reduceMotion === true
     ? {}
-    : { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
+    : {
+        initial: { opacity: 0, y: 16 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.4 },
+      };
 }
 
 /** Scroll entrance: like useFadeUp but fires once when scrolled into view. */

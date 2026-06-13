@@ -1,21 +1,25 @@
 /**
  * Field groups for the four data-entry steps of the onboarding wizard.
  * Pure controlled inputs — the page owns form state and validation; this
- * module owns only the labelled markup (every control goes through Field).
+ * module owns only the labelled markup (every control goes through Field,
+ * numeric min/max come from core's SURVEY_BOUNDS).
  */
 'use client';
 
-import { Field } from '../../../components/ui/Field';
+import { SURVEY_BOUNDS } from '@carbon-saathi/core';
+import { Field } from '@/components/ui/Field';
 import {
   CAR_MODES,
   COMMUTE_MODE_OPTIONS,
   DIET_OPTIONS,
+  NAME_MAX_LENGTH,
   SHOPPING_OPTIONS,
+  optionValue,
   type ElectricityInputKind,
   type SurveyErrors,
   type SurveyFormState,
 } from './survey-form';
-import { INPUT_CLASS } from '../../../components/ui/input-styles';
+import { INPUT_CLASS } from '@/components/ui/input-styles';
 
 export interface StepFieldsProps {
   form: SurveyFormState;
@@ -38,8 +42,8 @@ export function HomeEnergyFields({ form, errors, onChange }: StepFieldsProps): R
       >
         <input
           type="number"
-          min={1}
-          max={15}
+          min={SURVEY_BOUNDS.householdSize.min}
+          max={SURVEY_BOUNDS.householdSize.max}
           className={INPUT_CLASS}
           value={form.householdSize}
           onChange={(event) => onChange('householdSize', event.target.value)}
@@ -96,8 +100,8 @@ export function HomeEnergyFields({ form, errors, onChange }: StepFieldsProps): R
       >
         <input
           type="number"
-          min={0}
-          max={10}
+          min={SURVEY_BOUNDS.lpgCylindersPerMonth.min}
+          max={SURVEY_BOUNDS.lpgCylindersPerMonth.max}
           step="0.5"
           className={INPUT_CLASS}
           value={form.lpgCylindersPerMonth}
@@ -113,8 +117,8 @@ export function HomeEnergyFields({ form, errors, onChange }: StepFieldsProps): R
       >
         <input
           type="number"
-          min={0}
-          max={24}
+          min={SURVEY_BOUNDS.acHoursPerDay.min}
+          max={SURVEY_BOUNDS.acHoursPerDay.max}
           className={INPUT_CLASS}
           value={form.acHoursPerDay}
           onChange={(event) => onChange('acHoursPerDay', event.target.value)}
@@ -132,9 +136,10 @@ export function CommuteFields({ form, errors, onChange }: StepFieldsProps): Reac
         <select
           className={INPUT_CLASS}
           value={form.commuteMode}
-          onChange={(event) =>
-            onChange('commuteMode', event.target.value as SurveyFormState['commuteMode'])
-          }
+          onChange={(event) => {
+            const mode = optionValue(COMMUTE_MODE_OPTIONS, event.target.value);
+            if (mode !== undefined) onChange('commuteMode', mode);
+          }}
         >
           {COMMUTE_MODE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -151,8 +156,8 @@ export function CommuteFields({ form, errors, onChange }: StepFieldsProps): Reac
       >
         <input
           type="number"
-          min={0}
-          max={200}
+          min={SURVEY_BOUNDS.commuteKmOneWay.min}
+          max={SURVEY_BOUNDS.commuteKmOneWay.max}
           className={INPUT_CLASS}
           value={form.commuteKmOneWay}
           onChange={(event) => onChange('commuteKmOneWay', event.target.value)}
@@ -166,8 +171,8 @@ export function CommuteFields({ form, errors, onChange }: StepFieldsProps): Reac
       >
         <input
           type="number"
-          min={0}
-          max={7}
+          min={SURVEY_BOUNDS.commuteDaysPerWeek.min}
+          max={SURVEY_BOUNDS.commuteDaysPerWeek.max}
           className={INPUT_CLASS}
           value={form.commuteDaysPerWeek}
           onChange={(event) => onChange('commuteDaysPerWeek', event.target.value)}
@@ -183,8 +188,8 @@ export function CommuteFields({ form, errors, onChange }: StepFieldsProps): Reac
         >
           <input
             type="number"
-            min={1}
-            max={4}
+            min={SURVEY_BOUNDS.carpoolSize.min}
+            max={SURVEY_BOUNDS.carpoolSize.max}
             className={INPUT_CLASS}
             value={form.carpoolSize}
             onChange={(event) => onChange('carpoolSize', event.target.value)}
@@ -200,8 +205,8 @@ export function CommuteFields({ form, errors, onChange }: StepFieldsProps): Reac
       >
         <input
           type="number"
-          min={0}
-          max={100}
+          min={SURVEY_BOUNDS.flightsShortPerYear.min}
+          max={SURVEY_BOUNDS.flightsShortPerYear.max}
           className={INPUT_CLASS}
           value={form.flightsShortPerYear}
           onChange={(event) => onChange('flightsShortPerYear', event.target.value)}
@@ -216,8 +221,8 @@ export function CommuteFields({ form, errors, onChange }: StepFieldsProps): Reac
       >
         <input
           type="number"
-          min={0}
-          max={50}
+          min={SURVEY_BOUNDS.flightsLongPerYear.min}
+          max={SURVEY_BOUNDS.flightsLongPerYear.max}
           className={INPUT_CLASS}
           value={form.flightsLongPerYear}
           onChange={(event) => onChange('flightsLongPerYear', event.target.value)}
@@ -239,9 +244,10 @@ export function FoodFields({ form, errors, onChange }: StepFieldsProps): React.J
         <select
           className={INPUT_CLASS}
           value={form.dietPattern}
-          onChange={(event) =>
-            onChange('dietPattern', event.target.value as SurveyFormState['dietPattern'])
-          }
+          onChange={(event) => {
+            const diet = optionValue(DIET_OPTIONS, event.target.value);
+            if (diet !== undefined) onChange('dietPattern', diet);
+          }}
         >
           {DIET_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -266,9 +272,10 @@ export function LifestyleFields({ form, errors, onChange }: StepFieldsProps): Re
         <select
           className={INPUT_CLASS}
           value={form.shoppingLevel}
-          onChange={(event) =>
-            onChange('shoppingLevel', event.target.value as SurveyFormState['shoppingLevel'])
-          }
+          onChange={(event) => {
+            const level = optionValue(SHOPPING_OPTIONS, event.target.value);
+            if (level !== undefined) onChange('shoppingLevel', level);
+          }}
         >
           {SHOPPING_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -286,7 +293,7 @@ export function LifestyleFields({ form, errors, onChange }: StepFieldsProps): Re
       >
         <input
           type="text"
-          maxLength={60}
+          maxLength={NAME_MAX_LENGTH}
           className={INPUT_CLASS}
           value={form.stateName}
           onChange={(event) => onChange('stateName', event.target.value)}
@@ -301,7 +308,7 @@ export function LifestyleFields({ form, errors, onChange }: StepFieldsProps): Re
       >
         <input
           type="text"
-          maxLength={60}
+          maxLength={NAME_MAX_LENGTH}
           className={INPUT_CLASS}
           value={form.displayName}
           onChange={(event) => onChange('displayName', event.target.value)}

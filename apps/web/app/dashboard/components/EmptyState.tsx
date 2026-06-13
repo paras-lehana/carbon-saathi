@@ -5,15 +5,19 @@
  */
 'use client';
 
-import { Button } from '../../../components/ui/Button';
-import { GlassCard } from '../../../components/ui/GlassCard';
-import { useSeedDemo } from '../../../lib/use-seed-demo';
+import { Button } from '@/components/ui/Button';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { useSeedDemo } from '@/lib/use-seed-demo';
 
 export function EmptyState(): React.JSX.Element {
   const { seeding, seedDemo } = useSeedDemo();
 
   return (
-    <GlassCard as="section" className="mx-auto max-w-xl py-10 text-center" aria-label="No profile yet">
+    <GlassCard
+      as="section"
+      className="mx-auto max-w-xl py-10 text-center"
+      aria-label="No profile yet"
+    >
       <span aria-hidden="true" className="text-5xl">
         🌱
       </span>
@@ -21,8 +25,8 @@ export function EmptyState(): React.JSX.Element {
         Your dashboard is waiting for a footprint
       </h1>
       <p className="mx-auto mt-2 max-w-md text-ink-muted">
-        Answer a two-minute survey to see your annual CO₂, your level and your weekly missions —
-        or peek inside with a demo profile first.
+        Answer a two-minute survey to see your annual CO₂, your level and your weekly missions — or
+        peek inside with a demo profile first.
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button href="/onboarding">Start the two-minute survey</Button>

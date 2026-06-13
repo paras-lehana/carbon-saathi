@@ -5,6 +5,7 @@
  * leaderboard.
  */
 import { appError, type AppError } from './errors';
+import { round2 } from './math';
 import { err, ok, type Result } from './result';
 import type { ActionDefinition, ActionImpact } from './types';
 
@@ -12,10 +13,6 @@ import type { ActionDefinition, ActionImpact } from './types';
 // invariant can never drift from the catalog values.
 function defineAction(definition: Omit<ActionDefinition, 'pointsPerUnit'>): ActionDefinition {
   return { ...definition, pointsPerUnit: Math.round(definition.co2SavedKg * 10) };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 export const ACTION_CATALOG: readonly ActionDefinition[] = [

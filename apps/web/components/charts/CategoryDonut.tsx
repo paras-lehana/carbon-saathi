@@ -4,7 +4,7 @@
  * in ui/DonutChart.
  */
 import type { FootprintByCategory, FootprintCategory } from '@carbon-saathi/core';
-import { formatKgCo2 } from '../../lib/format';
+import { formatKgCo2 } from '@/lib/format';
 import { DonutChart } from '../ui/DonutChart';
 
 // Theme-reactive chart tokens defined in app/globals.css.
@@ -51,9 +51,7 @@ export function CategoryDonut({
               style={{ background: CATEGORY_META[category].color }}
             />
             <span>{CATEGORY_META[category].label}</span>
-            <span className="ml-auto pl-4 font-semibold">
-              {formatKgCo2(byCategory[category])}
-            </span>
+            <span className="ml-auto pl-4 font-semibold">{formatKgCo2(byCategory[category])}</span>
           </li>
         ))}
       </ul>

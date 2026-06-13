@@ -5,7 +5,7 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QUIZ_QUESTIONS } from '@carbon-saathi/core';
+import { estimateFromQuiz, QUIZ_QUESTIONS, quizAnswersSchema } from '@carbon-saathi/core';
 import { QuizWidget } from '../gamification/QuizWidget';
 import { ToastProvider } from '../ui/Toast';
 
@@ -34,15 +34,30 @@ function answerCurrentQuestion(questionIndex: number): void {
   fireEvent.click(group.querySelectorAll('button')[0] as HTMLButtonElement);
 }
 
+// The test clicks the FIRST option of every question; mirror that here so the
+// mocked payload is exactly what the live API (which serves core's output
+// verbatim) would return — and therefore passes api-client's response schema.
+const FIRST_OPTION_ANSWERS = quizAnswersSchema.parse(
+  Object.fromEntries(QUIZ_QUESTIONS.map((question) => [question.id, question.options[0].id])),
+);
+
+const ESTIMATE = (() => {
+  const result = estimateFromQuiz(FIRST_OPTION_ANSWERS);
+  if (!result.ok) throw new Error('first-option quiz answers must produce an estimate');
+  return result.value;
+})();
+
+/** The tonnes line the widget renders for the mocked estimate, e.g. "1.8 t CO₂e/year". */
+const EXPECTED_TONNES_TEXT = new RegExp(
+  `${(ESTIMATE.baseline.totalKgAnnual / 1000).toFixed(1).replace('.', '\\.')} t CO₂e/year`,
+);
+
 function stubEstimateFetch(): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn().mockResolvedValue(
-    new Response(
-      JSON.stringify({
-        baseline: { totalKgAnnual: 1840 },
-        survey: { householdSize: 4 },
-      }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    ),
+    new Response(JSON.stringify({ baseline: ESTIMATE.baseline, survey: ESTIMATE.survey }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }),
   );
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
@@ -86,7 +101,7 @@ describe('QuizWidget', () => {
       answerCurrentQuestion(i);
     }
     await waitFor(() => {
-      expect(screen.getByText(/1\.8 t CO₂e\/year/)).toBeInTheDocument();
+      expect(screen.getByText(EXPECTED_TONNES_TEXT)).toBeInTheDocument();
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -118,7 +133,7 @@ describe('QuizWidget', () => {
     for (let i = 0; i < QUIZ_QUESTIONS.length; i += 1) {
       answerCurrentQuestion(i);
     }
-    await screen.findByText(/1\.8 t CO₂e\/year/);
+    await screen.findByText(EXPECTED_TONNES_TEXT);
 
     fetchMock.mockResolvedValueOnce(
       new Response(
@@ -138,7 +153,7 @@ describe('QuizWidget', () => {
     const [, bootstrapInit] = fetchMock.mock.calls[1] as [string, RequestInit];
     const bootstrapBody = JSON.parse(String(bootstrapInit.body)) as Record<string, unknown>;
     expect(bootstrapBody.source).toBe('quiz');
-    expect(bootstrapBody.baseline).toEqual({ totalKgAnnual: 1840 });
-    expect(bootstrapBody.survey).toEqual({ householdSize: 4 });
+    expect(bootstrapBody.baseline).toEqual(ESTIMATE.baseline);
+    expect(bootstrapBody.survey).toEqual(ESTIMATE.survey);
   });
 });

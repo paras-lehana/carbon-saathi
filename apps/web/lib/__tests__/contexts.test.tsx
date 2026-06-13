@@ -7,7 +7,12 @@
 import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ActionLogEntry, GamificationState, LevelProgress, UserState } from '@carbon-saathi/core';
+import type {
+  ActionLogEntry,
+  GamificationState,
+  LevelProgress,
+  UserState,
+} from '@carbon-saathi/core';
 import type { ActionLogResponse } from '../api-client';
 import { Providers, useGamification, useProfile } from '../contexts';
 import { STORAGE_KEYS, type StorageKey } from '../storage';
@@ -126,7 +131,9 @@ function Probe(): React.JSX.Element {
         type="button"
         onClick={() => {
           void logAction('veg-day', 1).then((result) => {
-            setLastLog(result.ok ? `ok:${result.data.impact.points}` : `error:${result.error.code}`);
+            setLastLog(
+              result.ok ? `ok:${result.data.impact.points}` : `error:${result.error.code}`,
+            );
           });
         }}
       >

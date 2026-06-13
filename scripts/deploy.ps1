@@ -6,7 +6,7 @@ param(
   [string]$Region = 'asia-south1'
 )
 
-$ErrorActionPreference = 'Stop'
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
@@ -59,11 +59,11 @@ $apiUrl = gcloud run services describe carbon-saathi-api --region=$Region --form
 Write-Host "==> API live at: $apiUrl"
 
 Write-Host '==> Building + deploying web (proxying to the API)'
-gcloud builds submit --config cloudbuild-web.yaml --substitutions=_REGION=$Region,_API_BASE_URL=$apiUrl
+gcloud builds submit --config cloudbuild-web.yaml "--substitutions=_REGION=$Region,_API_BASE_URL=$apiUrl"
 
 Write-Host '==> Allowing the web origin through API CORS'
 $webUrl = gcloud run services describe carbon-saathi-web --region=$Region --format='value(status.url)'
-gcloud run services update carbon-saathi-api --region=$Region --update-env-vars="ALLOWED_ORIGINS=$webUrl,http://localhost:3000"
+gcloud run services update carbon-saathi-api --region=$Region "--update-env-vars=^:^ALLOWED_ORIGINS=$webUrl,http://localhost:3000"
 
 Write-Host ''
 Write-Host '================ DEPLOYED ================'

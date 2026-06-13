@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import {
   bootstrapRequestSchema,
   evaluateBadges,
+  round2,
   type BootstrapRequest,
   type GamificationState,
   type UserState,
@@ -26,10 +27,6 @@ function emptyGamification(): GamificationState {
     earnedBadges: [],
     pledge: null,
   };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**
@@ -79,8 +76,13 @@ export function createUsersRouter(store: UserStore, now: () => number): Router {
     validateBody(bootstrapRequestSchema),
     asyncHandler(async (_req, res) => {
       const body = parsedBody(res, bootstrapRequestSchema);
-      if (body.userId !== undefined) {
-        const existing = await store.getUser(body.userId);
+      // randomUUID is fine here: identity minting is an API-layer concern,
+      // never domain math (which stays deterministic).
+      const userId = body.userId ?? randomUUID();
+      // Concurrency: create-or-restore reads then writes the same record, so
+      // it runs as one serialized per-user mutation — two parallel bootstraps
+      // for one userId cannot both take the create branch and clobber state.
+      await store.mutateUser(userId, (existing) => {
         if (existing !== undefined) {
           // Server state wins over the client mirror — it is the points ledger
           // of record; only missing context is adopted from the client.
@@ -94,30 +96,27 @@ export function createUsersRouter(store: UserStore, now: () => number): Router {
             ...merged,
             gamification: withBootstrapBadges(merged.gamification, body),
           };
-          await store.saveUser(withBadges);
           res.json(withBadges);
-          return;
+          return withBadges;
         }
-      }
-      const restored =
-        body.gamification !== undefined ? clampToLedger(body.gamification) : undefined;
-      const user: UserState = {
-        // randomUUID is fine here: identity minting is an API-layer concern,
-        // never domain math (which stays deterministic).
-        userId: body.userId ?? randomUUID(),
-        displayName: body.displayName ?? 'Saathi',
-        createdAtISO: new Date(now()).toISOString(),
-        baseline: body.baseline,
-        survey: body.survey,
-        joinedVia: body.source,
-        gamification: emptyGamification(),
-      };
-      const withState: UserState = {
-        ...user,
-        gamification: withBootstrapBadges(restored ?? user.gamification, body),
-      };
-      await store.saveUser(withState);
-      res.json(withState);
+        const restored =
+          body.gamification !== undefined ? clampToLedger(body.gamification) : undefined;
+        const user: UserState = {
+          userId,
+          displayName: body.displayName ?? 'Saathi',
+          createdAtISO: new Date(now()).toISOString(),
+          baseline: body.baseline,
+          survey: body.survey,
+          joinedVia: body.source,
+          gamification: emptyGamification(),
+        };
+        const withState: UserState = {
+          ...user,
+          gamification: withBootstrapBadges(restored ?? user.gamification, body),
+        };
+        res.json(withState);
+        return withState;
+      });
     }),
   );
   return router;

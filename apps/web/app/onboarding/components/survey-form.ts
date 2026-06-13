@@ -88,11 +88,26 @@ export const SHOPPING_OPTIONS: ReadonlyArray<{ value: ShoppingLevel; label: stri
 /** Carpool size only affects emissions for car modes (core baseline rule). */
 export const CAR_MODES: readonly CommuteMode[] = ['car-petrol', 'car-diesel', 'car-cng'];
 
+/** Cap for free-text names — mirrors core's 60-char schema bound on state/displayName. */
+export const NAME_MAX_LENGTH = 60;
+
 export function optionLabel<T extends string>(
   options: ReadonlyArray<{ value: T; label: string }>,
   value: T,
 ): string {
   return options.find((option) => option.value === value)?.label ?? value;
+}
+
+/**
+ * Narrows a raw <select> value back to its option union by looking it up in
+ * the options it was rendered from — the type-safe replacement for an `as`
+ * cast on event.target.value.
+ */
+export function optionValue<T extends string>(
+  options: ReadonlyArray<{ value: T; label: string }>,
+  raw: string,
+): T | undefined {
+  return options.find((option) => option.value === raw)?.value;
 }
 
 interface NumberBounds {
@@ -163,9 +178,11 @@ export function validateStep(step: number, form: SurveyFormState): SurveyErrors 
       checkNumber(form.flightsLongPerYear, { ...SURVEY_BOUNDS.flightsLongPerYear, integer: true }),
     );
   } else if (step === 3) {
-    if (form.stateName.trim().length > 60) errors.stateName = 'Keep this under 60 characters.';
-    if (form.displayName.trim().length > 60) {
-      errors.displayName = 'Keep this under 60 characters.';
+    if (form.stateName.trim().length > NAME_MAX_LENGTH) {
+      errors.stateName = `Keep this under ${NAME_MAX_LENGTH} characters.`;
+    }
+    if (form.displayName.trim().length > NAME_MAX_LENGTH) {
+      errors.displayName = `Keep this under ${NAME_MAX_LENGTH} characters.`;
     }
   }
   return errors;

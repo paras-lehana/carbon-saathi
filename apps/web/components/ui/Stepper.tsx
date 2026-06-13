@@ -13,7 +13,8 @@ export interface StepperProps {
 
 export function Stepper({ steps, current, className }: StepperProps): React.JSX.Element {
   return (
-    <ol role="list"
+    <ol
+      role="list"
       aria-label="Progress"
       className={['m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0', className]
         .filter(Boolean)

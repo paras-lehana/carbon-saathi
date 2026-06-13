@@ -3,7 +3,7 @@
  * labelled segments (subsidy vs your cost, central/state/farmer shares).
  * The bar itself is decorative — the legend carries exact amounts for all.
  */
-import { formatInr } from '../../../lib/format';
+import { formatInr } from '@/lib/format';
 
 export interface BreakdownSegment {
   label: string;
@@ -26,7 +26,10 @@ export function BreakdownBar({ title, segments, className }: BreakdownBarProps):
 
   return (
     <figure className={['m-0', className].filter(Boolean).join(' ')}>
-      <div aria-hidden="true" className="flex h-7 w-full overflow-hidden rounded-pill border border-line">
+      <div
+        aria-hidden="true"
+        className="flex h-7 w-full overflow-hidden rounded-pill border border-line"
+      >
         {total > 0 &&
           segments.map((segment) => (
             <div
@@ -39,7 +42,9 @@ export function BreakdownBar({ title, segments, className }: BreakdownBarProps):
           ))}
       </div>
       <figcaption className="mt-2">
-        <span className="sr-only">{title} — total {formatInr(total)}.</span>
+        <span className="sr-only">
+          {title} — total {formatInr(total)}.
+        </span>
         <ul role="list" className="m-0 flex list-none flex-wrap gap-x-6 gap-y-1 p-0">
           {segments.map((segment) => (
             <li key={segment.label} className="flex items-center gap-2 text-sm">
