@@ -11,6 +11,7 @@ import {
   evaluateBadges,
   evaluateMissions,
   getActionById,
+  round2,
   updateStreak,
   ACTION_CATALOG,
   appError,
@@ -19,7 +20,7 @@ import {
   type GamificationState,
   type UserState,
 } from '@carbon-saathi/core';
-import { Router } from 'express';
+import { type Request, type Response, Router } from 'express';
 import { asyncHandler, parsedBody, sendError, validateBody } from '../middleware/validate';
 import { summarizeGamification } from '../services/gamification-view';
 import type { UserStore } from '../services/store';
@@ -29,14 +30,121 @@ import { istDayISO, istWeekStartISO } from '../services/time';
 // always be re-bootstrapped through validation after an API restart.
 const MAX_LOG_ENTRIES = 5000;
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
 // Entries store UTC instants; day-bucketing converts each to its IST
 // calendar date so caps and todayLog agree with istDayISO(now).
 function entriesOnDay(log: readonly ActionLogEntry[], dayISO: string): ActionLogEntry[] {
   return log.filter((entry) => istDayISO(Date.parse(entry.loggedAtISO)) === dayISO);
+}
+
+async function handleActionLog(
+  store: UserStore,
+  now: () => number,
+  _req: Request,
+  res: Response,
+): Promise<void> {
+  const body = parsedBody(res, actionLogRequestSchema);
+  // Concurrency: the cap check reads today's log and the save rewrites it —
+  // two parallel requests could both pass the check on the same stale read,
+  // so the whole read-check-write runs as one serialized per-user mutation.
+  await store.mutateUser(body.userId, (user) => {
+    if (user === undefined) {
+      sendError(res, appError('NOT_FOUND', 'Unknown userId — bootstrap first.'));
+      return undefined;
+    }
+    const definition = getActionById(body.actionId);
+    if (definition === undefined) {
+      // A bad actionId is a defective payload, not a missing REST resource —
+      // 404 stays reserved for unknown routes and users.
+      sendError(res, appError('VALIDATION_FAILED', 'Unknown actionId.'));
+      return undefined;
+    }
+
+    const nowISO = new Date(now()).toISOString();
+    const todayISO = istDayISO(now());
+    // Anti-gaming: core caps a single request at maxPerDay; summing today's
+    // prior logs stops replaying max-sized requests all day long.
+    const alreadyToday = entriesOnDay(user.gamification.actionLog, todayISO)
+      .filter((entry) => entry.actionId === body.actionId)
+      .reduce((sum, entry) => sum + entry.quantity, 0);
+    if (alreadyToday + body.quantity > definition.maxPerDay) {
+      sendError(
+        res,
+        appError(
+          'VALIDATION_FAILED',
+          `Daily cap reached: ${definition.id} allows ${definition.maxPerDay} per day.`,
+        ),
+      );
+      return undefined;
+    }
+
+    const impact = calculateActionImpact(body.actionId, body.quantity);
+    if (!impact.ok) {
+      sendError(res, impact.error);
+      return undefined;
+    }
+    const streak = updateStreak(user.gamification.streak, nowISO);
+    if (!streak.ok) {
+      sendError(res, streak.error);
+      return undefined;
+    }
+
+    // Pledge payoff: completing today's pledged action earns the 1.2× bonus
+    // exactly once — bonusApplied flips so a second log pays base points.
+    const pledge = user.gamification.pledge;
+    const pledgeHit =
+      pledge !== null &&
+      pledge.actionId === body.actionId &&
+      pledge.dateISO === todayISO &&
+      !pledge.bonusApplied;
+    const awardedPoints = pledgeHit ? applyPledgeBonus(impact.value.points) : impact.value.points;
+    const updatedPledge: DailyPledge | null = pledgeHit
+      ? { ...pledge, bonusApplied: true }
+      : pledge;
+
+    const entry: ActionLogEntry = {
+      actionId: body.actionId,
+      quantity: body.quantity,
+      co2SavedKg: impact.value.co2SavedKg,
+      points: awardedPoints,
+      loggedAtISO: nowISO,
+    };
+    const actionLog = [...user.gamification.actionLog, entry].slice(-MAX_LOG_ENTRIES);
+    const totalCo2SavedKg = round2(user.gamification.totalCo2SavedKg + impact.value.co2SavedKg);
+
+    // Badge evaluation runs on the post-update ledger; missions on the IST
+    // week so mission-master lands the moment the closing log is saved.
+    const missions = evaluateMissions(actionLog, istWeekStartISO(now()));
+    const newBadges = evaluateBadges({
+      earnedBadges: user.gamification.earnedBadges,
+      hasBaseline: user.baseline !== undefined,
+      joinedViaQuiz: user.joinedVia === 'quiz',
+      actionCount: actionLog.length,
+      streakCurrent: streak.value.current,
+      totalCo2SavedKg,
+      missionCompleted: missions.ok && missions.value.some((mission) => mission.completed),
+      pledgeCompleted: pledgeHit,
+    });
+
+    const gamification: GamificationState = {
+      points: user.gamification.points + awardedPoints,
+      totalCo2SavedKg,
+      streak: streak.value,
+      actionLog,
+      earnedBadges: [...user.gamification.earnedBadges, ...newBadges.map((badge) => badge.id)],
+      pledge: updatedPledge,
+    };
+    const updated: UserState = { ...user, gamification };
+
+    res.json({
+      impact: { ...impact.value, points: awardedPoints },
+      gamification: summarizeGamification(gamification),
+      todayLog: entriesOnDay(gamification.actionLog, todayISO),
+      newBadges,
+    });
+    // mutateUser persists the returned state before releasing this user's
+    // queue, so the next request always sees this log.
+    return updated;
+  });
 }
 
 export function createActionsRouter(store: UserStore, now: () => number): Router {
@@ -49,105 +157,7 @@ export function createActionsRouter(store: UserStore, now: () => number): Router
   router.post(
     '/log',
     validateBody(actionLogRequestSchema),
-    asyncHandler(async (_req, res) => {
-      const body = parsedBody(res, actionLogRequestSchema);
-      const user = await store.getUser(body.userId);
-      if (user === undefined) {
-        sendError(res, appError('NOT_FOUND', 'Unknown userId — bootstrap first.'));
-        return;
-      }
-      const definition = getActionById(body.actionId);
-      if (definition === undefined) {
-        // A bad actionId is a defective payload, not a missing REST resource —
-        // 404 stays reserved for unknown routes and users.
-        sendError(res, appError('VALIDATION_FAILED', 'Unknown actionId.'));
-        return;
-      }
-
-      const nowISO = new Date(now()).toISOString();
-      const todayISO = istDayISO(now());
-      // Anti-gaming: core caps a single request at maxPerDay; summing today's
-      // prior logs stops replaying max-sized requests all day long.
-      const alreadyToday = entriesOnDay(user.gamification.actionLog, todayISO)
-        .filter((entry) => entry.actionId === body.actionId)
-        .reduce((sum, entry) => sum + entry.quantity, 0);
-      if (alreadyToday + body.quantity > definition.maxPerDay) {
-        sendError(
-          res,
-          appError(
-            'VALIDATION_FAILED',
-            `Daily cap reached: ${definition.id} allows ${definition.maxPerDay} per day.`,
-          ),
-        );
-        return;
-      }
-
-      const impact = calculateActionImpact(body.actionId, body.quantity);
-      if (!impact.ok) {
-        sendError(res, impact.error);
-        return;
-      }
-      const streak = updateStreak(user.gamification.streak, nowISO);
-      if (!streak.ok) {
-        sendError(res, streak.error);
-        return;
-      }
-
-      // Pledge payoff: completing today's pledged action earns the 1.2× bonus
-      // exactly once — bonusApplied flips so a second log pays base points.
-      const pledge = user.gamification.pledge;
-      const pledgeHit =
-        pledge !== null &&
-        pledge.actionId === body.actionId &&
-        pledge.dateISO === todayISO &&
-        !pledge.bonusApplied;
-      const awardedPoints = pledgeHit ? applyPledgeBonus(impact.value.points) : impact.value.points;
-      const updatedPledge: DailyPledge | null = pledgeHit
-        ? { ...pledge, bonusApplied: true }
-        : pledge;
-
-      const entry: ActionLogEntry = {
-        actionId: body.actionId,
-        quantity: body.quantity,
-        co2SavedKg: impact.value.co2SavedKg,
-        points: awardedPoints,
-        loggedAtISO: nowISO,
-      };
-      const actionLog = [...user.gamification.actionLog, entry].slice(-MAX_LOG_ENTRIES);
-      const totalCo2SavedKg = round2(user.gamification.totalCo2SavedKg + impact.value.co2SavedKg);
-
-      // Badge evaluation runs on the post-update ledger; missions on the IST
-      // week so mission-master lands the moment the closing log is saved.
-      const missions = evaluateMissions(actionLog, istWeekStartISO(now()));
-      const newBadges = evaluateBadges({
-        earnedBadges: user.gamification.earnedBadges,
-        hasBaseline: user.baseline !== undefined,
-        joinedViaQuiz: user.joinedVia === 'quiz',
-        actionCount: actionLog.length,
-        streakCurrent: streak.value.current,
-        totalCo2SavedKg,
-        missionCompleted: missions.ok && missions.value.some((mission) => mission.completed),
-        pledgeCompleted: pledgeHit,
-      });
-
-      const gamification: GamificationState = {
-        points: user.gamification.points + awardedPoints,
-        totalCo2SavedKg,
-        streak: streak.value,
-        actionLog,
-        earnedBadges: [...user.gamification.earnedBadges, ...newBadges.map((badge) => badge.id)],
-        pledge: updatedPledge,
-      };
-      const updated: UserState = { ...user, gamification };
-      await store.saveUser(updated);
-
-      res.json({
-        impact: { ...impact.value, points: awardedPoints },
-        gamification: summarizeGamification(gamification),
-        todayLog: entriesOnDay(gamification.actionLog, todayISO),
-        newBadges,
-      });
-    }),
+    asyncHandler((req, res) => handleActionLog(store, now, req, res)),
   );
 
   return router;

@@ -4,7 +4,7 @@
  * glass/bento utilities and global a11y affordances. Components consume
  * tokens only — never hard-coded colors.
  */
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* ── Raw tokens — light (default) ───────────────────────────────────────── */
 :root {
@@ -15,7 +15,7 @@
   --surface-alt: #e9f1ec; /* subtle alt fill for tracks/locked tiles — visible on both bg and surface */
   --surface-glass: rgba(255, 255, 255, 0.66);
   --text: #142a1f;
-  --text-muted: rgba(20, 42, 31, 0.68); /* keeps ≥ 4.5:1 on --bg */
+  --text-muted: #5f6e66; /* approx rgba(20, 42, 31, 0.68) on white */
   --success: #136843; /* reuses primary green — ≥ 4.5:1 on surface */
   --primary: #136843; /* 4.5:1+ even on primary-soft fills (axe-verified) */
   --on-primary: #ffffff; /* text on primary fills — white on #136843 ≈ 7.3:1 */
@@ -69,8 +69,8 @@
   --surface-alt: #1f2d26; /* lifted a step above surface for tracks/locked tiles */
   --surface-glass: rgba(22, 33, 28, 0.62);
   --text: #ecf4ee;
-  --text-muted: rgba(236, 244, 238, 0.66);
-  --success: #3ecf8e; /* matches dark primary — ≥ 4.5:1 on dark surfaces */
+  --text-muted: #a3aca6; /* approx rgba(236, 244, 238, 0.66) on surface */
+  --success: #5cd9a4; /* brightened to ensure ≥ 4.5:1 on dark surfaces */
   --primary: #3ecf8e;
   --primary-hover: #5cd9a4; /* hover brightens on dark (inverse of light) */
   --on-primary: #0f1714; /* dark ink on the bright green ≈ 9.5:1 (white would be ~2:1) */
@@ -127,7 +127,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-space-grotesk), 'Segoe UI', sans-serif;
   line-height: 1.15;
   letter-spacing: -0.01em;

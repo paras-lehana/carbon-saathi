@@ -6,7 +6,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { setStoredJson, STORAGE_KEYS } from '../../lib/storage';
+import { setStoredJson, STORAGE_KEYS } from '@/lib/storage';
 
 type Theme = 'light' | 'dark';
 

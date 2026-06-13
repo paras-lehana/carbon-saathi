@@ -1,7 +1,8 @@
 /**
  * SSR-safe localStorage wrapper. Owns the canonical 'carbon-saathi:*' key
- * namespace and corrupt-JSON recovery; callers own the type they store
- * under each key (state shape validation happens in contexts.tsx).
+ * namespace and corrupt-JSON recovery: unparseable entries self-heal to a
+ * null read. Callers own — and must validate — the shape stored under each
+ * key; getStoredJson only guarantees syntactically valid JSON.
  */
 
 export const STORAGE_KEYS = {

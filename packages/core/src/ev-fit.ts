@@ -64,7 +64,7 @@ const TIER_NOTE: Record<1 | 2 | 3, string> = {
   3: 'in tier-3 cities plan around home charging; DC fast chargers are still sparse',
 };
 
-export function calculateEvFit(input: EvFitInput): Result<EvFitResult, AppError> {
+function validateEvFitInput(input: EvFitInput): Result<void, AppError> {
   if (!Number.isFinite(input.dailyKm) || input.dailyKm < 1 || input.dailyKm > 300) {
     return err(appError('VALIDATION_FAILED', 'dailyKm must be between 1 and 300'));
   }
@@ -77,21 +77,46 @@ export function calculateEvFit(input: EvFitInput): Result<EvFitResult, AppError>
       appError('VALIDATION_FAILED', 'longTripsPerMonth must be an integer between 0 and 20'),
     );
   }
+  return ok(undefined);
+}
 
-  const hasCharging = input.hasHomeCharging || input.hasOfficeCharging;
-  let recommendation: EvRecommendation;
+function getRecommendation(input: EvFitInput, hasCharging: boolean): EvRecommendation {
   if (input.dailyKm < 8 && !hasCharging) {
     // Below ~8 km/day a private EV never amortises — transit wins outright.
-    recommendation = 'public-transport-first';
-  } else if (input.currentVehicle === 'two-wheeler' || input.dailyKm <= 30) {
-    recommendation = 'ev-two-wheeler';
-  } else if (input.dailyKm <= 80 && hasCharging) {
-    recommendation = 'ev-car';
-  } else if (input.dailyKm > 80 && input.longTripsPerMonth > 4 && !hasCharging) {
-    recommendation = 'hybrid';
-  } else {
-    recommendation = 'ev-car-with-planning';
+    return 'public-transport-first';
   }
+  if (input.currentVehicle === 'two-wheeler' || input.dailyKm <= 30) {
+    return 'ev-two-wheeler';
+  }
+  if (input.dailyKm <= 80 && hasCharging) {
+    return 'ev-car';
+  }
+  if (input.dailyKm > 80 && input.longTripsPerMonth > 4 && !hasCharging) {
+    return 'hybrid';
+  }
+  return 'ev-car-with-planning';
+}
+
+function getConfidence(recommendation: EvRecommendation): EvFitResult['confidence'] {
+  // High confidence when no charging gamble remains: ev-car only fires with
+  // charging access, a 2W charges from a regular 15 A socket, and public
+  // transport needs no infrastructure at all.
+  if (
+    recommendation === 'ev-car' ||
+    recommendation === 'ev-two-wheeler' ||
+    recommendation === 'public-transport-first'
+  ) {
+    return 'high';
+  }
+  return 'medium';
+}
+
+export function calculateEvFit(input: EvFitInput): Result<EvFitResult, AppError> {
+  const validation = validateEvFitInput(input);
+  if (!validation.ok) return err(validation.error);
+
+  const hasCharging = input.hasHomeCharging || input.hasOfficeCharging;
+  const recommendation = getRecommendation(input, hasCharging);
 
   const basis = currentCostBasis(input.currentVehicle, recommendation);
   const annualKm = input.dailyKm * OPERATING_DAYS_PER_YEAR;
@@ -104,15 +129,7 @@ export function calculateEvFit(input: EvFitInput): Result<EvFitResult, AppError>
     Math.round((basis.inrPerKm - ALT_INR_PER_KM[recommendation]) * annualKm),
   );
 
-  // High confidence when no charging gamble remains: ev-car only fires with
-  // charging access, a 2W charges from a regular 15 A socket, and public
-  // transport needs no infrastructure at all.
-  const confidence: EvFitResult['confidence'] =
-    recommendation === 'ev-car' ||
-    recommendation === 'ev-two-wheeler' ||
-    recommendation === 'public-transport-first'
-      ? 'high'
-      : 'medium';
+  const confidence = getConfidence(recommendation);
 
   return ok({
     recommendation,

@@ -10,7 +10,10 @@ import {
   calculateSuryaGhar,
   EMISSION_FACTORS,
   estimateCommuteModes,
+  EV_FIT_BOUNDS,
+  KUSUM_BOUNDS,
   pointsForCo2,
+  SURYA_GHAR_BOUNDS,
   type ActionDefinition,
   type AssistantQueryRequest,
   type UserState,
@@ -49,20 +52,21 @@ function suryaGharBundle(
 ): GroundingBundle | undefined {
   // 300 units/month is a typical urban 2-3 BHK with AC use — a sensible demo
   // default when neither the message nor the user's survey carries a figure.
+  const { min, max } = SURYA_GHAR_BOUNDS.monthlyUnits;
   const units =
-    firstNumberInRange(message, 30, 2000) ??
+    firstNumberInRange(message, min, max) ??
     (user?.survey?.monthlyElectricityKwh !== undefined
-      ? Math.min(2000, Math.max(30, user.survey.monthlyElectricityKwh))
+      ? Math.min(max, Math.max(min, user.survey.monthlyElectricityKwh))
       : 300);
   const result = calculateSuryaGhar({ monthlyUnits: units });
   if (!result.ok) return undefined;
-  const r = result.value;
+  const estimate = result.value;
   return {
-    calculatorData: { scheme: 'pm-surya-ghar', monthlyUnits: units, result: r },
+    calculatorData: { scheme: 'pm-surya-ghar', monthlyUnits: units, result: estimate },
     demoReply:
-      `For about ${units} units a month, PM Surya Ghar fits a ${r.recommendedKw} kW rooftop system: ` +
-      `central subsidy ₹${r.subsidyInr}, net cost ₹${r.netCostInr} after subsidy, annual saving around ` +
-      `₹${r.annualSavingInr}, payback near ${r.paybackYears} years, avoiding roughly ${r.co2AvoidedKgPerYear} kg CO2e a year. ` +
+      `For about ${units} units a month, PM Surya Ghar fits a ${estimate.recommendedKw} kW rooftop system: ` +
+      `central subsidy ₹${estimate.subsidyInr}, net cost ₹${estimate.netCostInr} after subsidy, annual saving around ` +
+      `₹${estimate.annualSavingInr}, payback near ${estimate.paybackYears} years, avoiding roughly ${estimate.co2AvoidedKgPerYear} kg CO2e a year. ` +
       `These are estimates — apply and verify at pmsuryaghar.gov.in.`,
     usedSchemes: true,
   };
@@ -71,7 +75,7 @@ function suryaGharBundle(
 function kusumBundle(message: string): GroundingBundle | undefined {
   // Defaults model the most common KUSUM case: an individual farmer replacing
   // a 5 HP diesel pump (Component B).
-  const pumpHp = firstNumberInRange(message, 1, 10) ?? 5;
+  const pumpHp = firstNumberInRange(message, KUSUM_BOUNDS.pumpHp.min, KUSUM_BOUNDS.pumpHp.max) ?? 5;
   const result = adviseKusum({
     farmerType: 'individual',
     pumpType: 'diesel',
@@ -79,20 +83,21 @@ function kusumBundle(message: string): GroundingBundle | undefined {
     hasBarrenLand: false,
   });
   if (!result.ok) return undefined;
-  const r = result.value;
+  const advice = result.value;
   return {
-    calculatorData: { scheme: 'pm-kusum', pumpHp, result: r },
+    calculatorData: { scheme: 'pm-kusum', pumpHp, result: advice },
     demoReply:
-      `Under PM-KUSUM Component ${r.component}, a ${pumpHp} HP solar pump costs about ₹${r.estCostInr}: ` +
-      `60% is subsidised, your share is ₹${r.farmerShareInr} (only ~₹${r.subsidyBreakdown.farmerUpfrontApproxInr} upfront, the rest is bankable). ` +
-      `It saves about ${r.dieselSavedLitresPerYear} litres of diesel and ${r.co2AvoidedKgPerYear} kg CO2e a year. ` +
+      `Under PM-KUSUM Component ${advice.component}, a ${pumpHp} HP solar pump costs about ₹${advice.estCostInr}: ` +
+      `60% is subsidised, your share is ₹${advice.farmerShareInr} (only ~₹${advice.subsidyBreakdown.farmerUpfrontApproxInr} upfront, the rest is bankable). ` +
+      `It saves about ${advice.dieselSavedLitresPerYear} litres of diesel and ${advice.co2AvoidedKgPerYear} kg CO2e a year. ` +
       `Estimates — confirm with your state agency via mnre.gov.in.`,
     usedSchemes: true,
   };
 }
 
 function evBundle(message: string): GroundingBundle | undefined {
-  const dailyKm = firstNumberInRange(message, 1, 300) ?? 30;
+  const dailyKm =
+    firstNumberInRange(message, EV_FIT_BOUNDS.dailyKm.min, EV_FIT_BOUNDS.dailyKm.max) ?? 30;
   const result = calculateEvFit({
     dailyKm,
     currentVehicle: message.includes('car') ? 'car-petrol' : 'two-wheeler',
@@ -104,12 +109,12 @@ function evBundle(message: string): GroundingBundle | undefined {
     cityTier: 1,
   });
   if (!result.ok) return undefined;
-  const r = result.value;
+  const fit = result.value;
   return {
-    calculatorData: { advisor: 'ev-fit', dailyKm, result: r },
+    calculatorData: { advisor: 'ev-fit', dailyKm, result: fit },
     demoReply:
-      `For about ${dailyKm} km a day, the best fit is "${r.recommendation}": roughly ${r.annualCo2SavedKg} kg CO2e ` +
-      `and ₹${r.annualFuelSavingInr} saved per year versus your current ride (estimates). ${r.fameNote}`,
+      `For about ${dailyKm} km a day, the best fit is "${fit.recommendation}": roughly ${fit.annualCo2SavedKg} kg CO2e ` +
+      `and ₹${fit.annualFuelSavingInr} saved per year versus your current ride (estimates). ${fit.fameNote}`,
     // PM E-DRIVE incentives make EV advice scheme-grounded too.
     usedSchemes: true,
   };
@@ -148,13 +153,13 @@ const METRO_POINTS = pointsForCo2(METRO_ACTION.co2SavedKg);
 
 function baselineBundle(user: UserState | undefined): GroundingBundle {
   if (user?.baseline !== undefined) {
-    const b = user.baseline;
+    const baseline = user.baseline;
     return {
-      calculatorData: { footprint: 'baseline', result: b },
+      calculatorData: { footprint: 'baseline', result: baseline },
       demoReply:
-        `Your baseline is about ${b.totalKgAnnual} kg CO2e a year — ${b.vsIndiaAverage}× the Indian average of ` +
-        `${EMISSION_FACTORS.indiaPerCapitaAnnual.value} kg. Your biggest driver is ${b.topDriver}. ` +
-        `Tip: ${b.generatedTips[0] ?? 'log one small action today to start your streak.'}`,
+        `Your baseline is about ${baseline.totalKgAnnual} kg CO2e a year — ${baseline.vsIndiaAverage}× the Indian average of ` +
+        `${EMISSION_FACTORS.indiaPerCapitaAnnual.value} kg. Your biggest driver is ${baseline.topDriver}. ` +
+        `Tip: ${baseline.generatedTips[0] ?? 'log one small action today to start your streak.'}`,
       usedSchemes: false,
     };
   }

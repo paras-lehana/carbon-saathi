@@ -7,6 +7,7 @@
  */
 import { EMISSION_FACTORS } from './emission-factors';
 import { appError, type AppError } from './errors';
+import { round2 } from './math';
 import { err, ok, type Result } from './result';
 import type {
   BaselineFootprintResult,
@@ -58,10 +59,6 @@ const COMMUTE_FACTOR_KG_PER_KM: Record<CommuteMode, number> = {
   wfh: 0,
 };
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
 function resolveMonthlyKwh(survey: BaselineSurveyInput): number | undefined {
   if (survey.monthlyElectricityKwh !== undefined) return survey.monthlyElectricityKwh;
   if (survey.monthlyBillInr !== undefined) return survey.monthlyBillInr / INR_PER_UNIT_TARIFF;
@@ -98,9 +95,7 @@ function buildTips(
   return tips;
 }
 
-export function calculateBaselineFootprint(
-  survey: BaselineSurveyInput,
-): Result<BaselineFootprintResult, AppError> {
+function validateHousehold(survey: BaselineSurveyInput): Result<void, AppError> {
   if (
     !Number.isInteger(survey.householdSize) ||
     survey.householdSize < 1 ||
@@ -108,7 +103,13 @@ export function calculateBaselineFootprint(
   ) {
     return err(appError('VALIDATION_FAILED', 'householdSize must be an integer between 1 and 15'));
   }
-  const monthlyKwh = resolveMonthlyKwh(survey);
+  return ok(undefined);
+}
+
+function validateConsumption(
+  survey: BaselineSurveyInput,
+  monthlyKwh: number | undefined,
+): Result<void, AppError> {
   if (monthlyKwh === undefined) {
     return err(appError('VALIDATION_FAILED', 'Provide monthlyElectricityKwh or monthlyBillInr'));
   }
@@ -128,14 +129,19 @@ export function calculateBaselineFootprint(
   if (!Number.isInteger(carpoolSize) || carpoolSize < 1 || carpoolSize > 4) {
     return err(appError('VALIDATION_FAILED', 'carpoolSize must be an integer between 1 and 4'));
   }
+  return ok(undefined);
+}
 
-  // Home energy is shared infrastructure, so it is divided per household member;
-  // AC hours are already embedded in the metered kWh and only steer the tips.
-  const homeEnergyKg =
+function calculateHomeEnergyKg(survey: BaselineSurveyInput, monthlyKwh: number): number {
+  return (
     (monthlyKwh * MONTHS_PER_YEAR * EMISSION_FACTORS.gridElectricity.value +
       survey.lpgCylindersPerMonth * MONTHS_PER_YEAR * EMISSION_FACTORS.lpgCylinder14kg.value) /
-    survey.householdSize;
+    survey.householdSize
+  );
+}
 
+function calculateTransportKg(survey: BaselineSurveyInput): number {
+  const carpoolSize = survey.carpoolSize ?? 1;
   const carpoolDivisor = CAR_MODES.has(survey.commuteMode) ? carpoolSize : 1;
   const commuteKg =
     (COMMUTE_FACTOR_KG_PER_KM[survey.commuteMode] *
@@ -147,10 +153,27 @@ export function calculateBaselineFootprint(
   const flightsKg =
     survey.flightsShortPerYear * SHORT_FLIGHT_KM * EMISSION_FACTORS.flightDomestic.value +
     survey.flightsLongPerYear * LONG_FLIGHT_KM * EMISSION_FACTORS.flightDomestic.value * 2; // return
+  return commuteKg + flightsKg;
+}
+
+export function calculateBaselineFootprint(
+  survey: BaselineSurveyInput,
+): Result<BaselineFootprintResult, AppError> {
+  const householdValidation = validateHousehold(survey);
+  if (!householdValidation.ok) return err(householdValidation.error);
+
+  const monthlyKwh = resolveMonthlyKwh(survey);
+  const consumptionValidation = validateConsumption(survey, monthlyKwh);
+  if (!consumptionValidation.ok) return err(consumptionValidation.error);
+
+  const safeMonthlyKwh = monthlyKwh as number;
+
+  const homeEnergyKg = calculateHomeEnergyKg(survey, safeMonthlyKwh);
+  const transportKg = calculateTransportKg(survey);
 
   const byCategory: FootprintByCategory = {
     homeEnergy: Math.round(homeEnergyKg),
-    transport: Math.round(commuteKg + flightsKg),
+    transport: Math.round(transportKg),
     food: FOOD_ANNUAL_KG[survey.dietPattern],
     shopping: SHOPPING_ANNUAL_KG[survey.shoppingLevel],
   };

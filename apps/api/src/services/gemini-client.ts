@@ -40,6 +40,64 @@ export interface GeminiClient {
   generate(systemPrompt: string, userContent: string): Promise<Result<string, AppError>>;
 }
 
+async function executeGenerateRequest(
+  fetchFn: typeof fetch,
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userContent: string,
+): Promise<Result<string, AppError>> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetchFn(
+      `${GEMINI_BASE_URL}/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          // Security: the key travels in a header rather than the query
+          // string, so URL-logging proxies can never capture it.
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userContent }] }],
+          generationConfig: {
+            temperature: TEMPERATURE,
+            maxOutputTokens: MAX_OUTPUT_TOKENS,
+            // Efficiency: the coach needs direct answers, not chain-of-thought.
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }),
+        signal: controller.signal,
+      },
+    );
+    if (!response.ok) {
+      // Security: upstream bodies are not relayed — they may echo request
+      // contents; the status code alone is enough for diagnostics.
+      return err(appError('UPSTREAM_FAILURE', `Gemini responded with HTTP ${response.status}.`));
+    }
+    const parsed = geminiResponseSchema.safeParse(await response.json());
+    const text = parsed.success
+      ? parsed.data.candidates?.[0]?.content?.parts
+          ?.map((part) => part.text ?? '')
+          .join('')
+          .trim()
+      : undefined;
+    if (text === undefined || text.length === 0) {
+      return err(appError('UPSTREAM_FAILURE', 'Gemini returned an empty reply.'));
+    }
+    return ok(text);
+  } catch {
+    // Security: fetch errors can embed the request URL and headers — they
+    // are swallowed here and replaced with a fixed, key-free message.
+    return err(appError('UPSTREAM_FAILURE', 'Gemini request failed or timed out.'));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function createGeminiClient(options: GeminiClientOptions): GeminiClient {
   const fetchFn = options.fetchFn ?? fetch;
   const apiKey = options.apiKey;
@@ -51,57 +109,7 @@ export function createGeminiClient(options: GeminiClientOptions): GeminiClient {
       if (!enabled || apiKey === undefined) {
         return err(appError('UPSTREAM_FAILURE', 'Gemini is not configured.'));
       }
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      try {
-        const response = await fetchFn(
-          `${GEMINI_BASE_URL}/${encodeURIComponent(options.model)}:generateContent`,
-          {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-              // Security: the key travels in a header rather than the query
-              // string, so URL-logging proxies can never capture it.
-              'x-goog-api-key': apiKey,
-            },
-            body: JSON.stringify({
-              systemInstruction: { parts: [{ text: systemPrompt }] },
-              contents: [{ role: 'user', parts: [{ text: userContent }] }],
-              generationConfig: {
-                temperature: TEMPERATURE,
-                maxOutputTokens: MAX_OUTPUT_TOKENS,
-                // Efficiency: the coach needs direct answers, not chain-of-thought.
-                thinkingConfig: { thinkingBudget: 0 },
-              },
-            }),
-            signal: controller.signal,
-          },
-        );
-        if (!response.ok) {
-          // Security: upstream bodies are not relayed — they may echo request
-          // contents; the status code alone is enough for diagnostics.
-          return err(
-            appError('UPSTREAM_FAILURE', `Gemini responded with HTTP ${response.status}.`),
-          );
-        }
-        const parsed = geminiResponseSchema.safeParse(await response.json());
-        const text = parsed.success
-          ? parsed.data.candidates?.[0]?.content?.parts
-              ?.map((part) => part.text ?? '')
-              .join('')
-              .trim()
-          : undefined;
-        if (text === undefined || text.length === 0) {
-          return err(appError('UPSTREAM_FAILURE', 'Gemini returned an empty reply.'));
-        }
-        return ok(text);
-      } catch {
-        // Security: fetch errors can embed the request URL and headers — they
-        // are swallowed here and replaced with a fixed, key-free message.
-        return err(appError('UPSTREAM_FAILURE', 'Gemini request failed or timed out.'));
-      } finally {
-        clearTimeout(timer);
-      }
+      return executeGenerateRequest(fetchFn, apiKey, options.model, systemPrompt, userContent);
     },
   };
 }

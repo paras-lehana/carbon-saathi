@@ -6,12 +6,12 @@
  */
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import type { GoogleServiceIntegration, GoogleServiceStatus } from '@carbon-saathi/core';
-import { Button } from '../../components/ui/Button';
-import { GlassCard } from '../../components/ui/GlassCard';
-import * as api from '../../lib/api-client';
-import type { GoogleServicesResponse } from '../../lib/api-client';
+import { CardSkeleton } from '@/components/ui/CardSkeleton';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { RetryCard } from '@/components/ui/RetryCard';
+import * as api from '@/lib/api-client';
+import { useApiQuery } from '@/lib/use-api-query';
 
 const STATUS_META: Record<GoogleServiceStatus, { label: string; className: string }> = {
   implemented: { label: 'Implemented', className: 'bg-primary-soft text-primary' },
@@ -27,8 +27,7 @@ const CATEGORY_LABELS: Record<GoogleServiceIntegration['category'], string> = {
   analytics: 'Analytics',
 };
 
-const CODE_CLASS =
-  'rounded bg-primary-soft px-1.5 py-0.5 font-mono text-xs text-ink break-all';
+const CODE_CLASS = 'rounded bg-primary-soft px-1.5 py-0.5 font-mono text-xs text-ink break-all';
 
 function StatusPill({ status }: { status: GoogleServiceStatus }): React.JSX.Element {
   const meta = STATUS_META[status];
@@ -40,19 +39,8 @@ function StatusPill({ status }: { status: GoogleServiceStatus }): React.JSX.Elem
 }
 
 export default function GoogleServicesPage(): React.JSX.Element {
-  const [data, setData] = useState<GoogleServicesResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async (): Promise<void> => {
-    setError(null);
-    const result = await api.getGoogleServices();
-    if (result.ok) setData(result.data);
-    else setError(result.error.message);
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // Module-level loader: a stable identity, so no useCallback wrapper needed.
+  const { data, error, retry } = useApiQuery(api.getGoogleServices);
 
   return (
     <div className="flex flex-col gap-6">
@@ -61,30 +49,23 @@ export default function GoogleServicesPage(): React.JSX.Element {
           Google services evidence
         </h1>
         <p className="mt-2 max-w-2xl text-ink-muted">
-          Every Google integration in Carbon Saathi, served live from the API&rsquo;s typed
-          catalog — what it does for users, where the code lives, and how it degrades without a
-          key. This page is itself served from Cloud Run (asia-south1); the API self-reports
-          live status at /api/health.
+          Every Google integration in Carbon Saathi, served live from the API&rsquo;s typed catalog
+          — what it does for users, where the code lives, and how it degrades without a key. This
+          page is itself served from Cloud Run (asia-south1); the API self-reports live status at
+          /api/health.
         </p>
       </div>
 
       {error !== null ? (
-        <GlassCard as="section" className="mx-auto max-w-xl py-10 text-center">
-          <p className="m-0 text-ink-muted">{error}</p>
-          <Button className="mt-4" onClick={() => void load()}>
-            Try again
-          </Button>
-        </GlassCard>
+        <RetryCard className="mx-auto max-w-xl" message={error} onRetry={retry} />
       ) : data === null ? (
-        <div role="status" aria-label="Loading the service catalog">
-          <span className="sr-only">Loading the service catalog…</span>
-          <div aria-hidden="true" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Mirrors the catalog size so the loading layout matches the data. */}
-            {Array.from({ length: 12 }, (_, index) => (
-              <div key={index} className="glass-card h-56 animate-pulse" />
-            ))}
-          </div>
-        </div>
+        // count mirrors the catalog size so the loading layout matches the data.
+        <CardSkeleton
+          count={12}
+          heightClass="h-56"
+          label="Loading the service catalog"
+          containerClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        />
       ) : (
         <>
           {/* ── Summary chips ── */}

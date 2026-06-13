@@ -79,7 +79,10 @@ export function DonutChart({
             ))}
         </svg>
         {centerLabel !== undefined && (
-          <div aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center">
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 flex flex-col items-center justify-center"
+          >
             <span className="font-display text-lg font-bold">{centerLabel}</span>
             {centerSublabel !== undefined && (
               <span className="text-xs text-ink-muted">{centerSublabel}</span>

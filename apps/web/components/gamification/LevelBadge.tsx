@@ -3,7 +3,7 @@
  * the next level). Display-only — level math lives in @carbon-saathi/core.
  */
 import type { LevelProgress } from '@carbon-saathi/core';
-import { formatNumber } from '../../lib/format';
+import { formatNumber } from '@/lib/format';
 
 export interface LevelBadgeProps {
   level: LevelProgress;

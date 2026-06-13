@@ -238,7 +238,9 @@ export async function askAssistantViaChip(page: Page): Promise<Locator> {
   const log = page.getByRole('log').first();
   await expect(log).toBeVisible({ timeout: COLD_START_TIMEOUT_MS });
   const chip = await firstVisible(
-    page.locator('main').getByRole('button', { name: /\?|surya|solar|kusum|footprint|carbon|veg/i }),
+    page
+      .locator('main')
+      .getByRole('button', { name: /\?|surya|solar|kusum|footprint|carbon|veg/i }),
   );
   if (!chip) throw new Error('No suggestion chip found on /assistant');
   await chip.click();

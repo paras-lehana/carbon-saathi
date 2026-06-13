@@ -4,6 +4,7 @@
  */
 export * from './result';
 export * from './errors';
+export * from './math';
 export * from './types';
 export * from './schemas';
 export * from './emission-factors';

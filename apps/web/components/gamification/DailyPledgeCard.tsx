@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ACTION_CATALOG } from '@carbon-saathi/core';
 import type { DailyPledge } from '@carbon-saathi/core';
-import * as api from '../../lib/api-client';
+import * as api from '@/lib/api-client';
 import { Button } from '../ui/Button';
 import { Field } from '../ui/Field';
 import { GlassCard } from '../ui/GlassCard';

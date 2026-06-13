@@ -4,8 +4,8 @@
  * page besides the footer where the data-handling promises live in prose.
  */
 import type { Metadata } from 'next';
-import { Button } from '../../components/ui/Button';
-import { GlassCard } from '../../components/ui/GlassCard';
+import { Button } from '@/components/ui/Button';
+import { GlassCard } from '@/components/ui/GlassCard';
 
 export const metadata: Metadata = {
   title: 'About & Privacy',
@@ -50,16 +50,16 @@ export default function AboutPage(): React.JSX.Element {
           🇮🇳 Our mission
         </h2>
         <p className="mt-2">
-          Most carbon calculators are written for other countries — other grids, other fuels,
-          other subsidies. Carbon Saathi starts from Indian reality: LPG cylinders and the CEA
-          grid factor, metro commutes and two-wheelers, PM Surya Ghar rooftop subsidies and PM
-          KUSUM solar pumps. The goal is simple: turn your bills and habits into one honest
-          number, then turn that number into small daily actions and real scheme money.
+          Most carbon calculators are written for other countries — other grids, other fuels, other
+          subsidies. Carbon Saathi starts from Indian reality: LPG cylinders and the CEA grid
+          factor, metro commutes and two-wheelers, PM Surya Ghar rooftop subsidies and PM KUSUM
+          solar pumps. The goal is simple: turn your bills and habits into one honest number, then
+          turn that number into small daily actions and real scheme money.
         </p>
         <p className="mt-2">
-          India&rsquo;s per-person footprint is still around 2 tonnes a year — far below the
-          global average — but it is rising fastest in urban households. Acting early, while
-          habits and purchases are still being formed, is the cheapest climate action there is.
+          India&rsquo;s per-person footprint is still around 2 tonnes a year — far below the global
+          average — but it is rising fastest in urban households. Acting early, while habits and
+          purchases are still being formed, is the cheapest climate action there is.
         </p>
       </section>
 
@@ -91,8 +91,8 @@ export default function AboutPage(): React.JSX.Element {
               ✓
             </span>
             <span>
-              <strong>Nothing sold, nothing tracked by default.</strong> Analytics stay off
-              unless a measurement key is explicitly configured.
+              <strong>Nothing sold, nothing tracked by default.</strong> Analytics stay off unless a
+              measurement key is explicitly configured.
             </span>
           </li>
         </ul>
@@ -114,12 +114,15 @@ export default function AboutPage(): React.JSX.Element {
           ⚖️ Scheme disclaimer
         </h2>
         <p className="mt-2">
-          Carbon Saathi is an independent project. It is <strong>not affiliated with, endorsed
-          by, or operated on behalf of the Government of India</strong> or any ministry. PM Surya
-          Ghar and PM KUSUM figures here are indicative estimates built from published scheme
-          guidelines and typical market costs — actual subsidies, tariffs and timelines vary by
-          state and DISCOM. Always verify with your DISCOM, your state implementing agency, or
-          MNRE before making a purchase decision. Every estimate in the app is labelled as such.
+          Carbon Saathi is an independent project. It is{' '}
+          <strong>
+            not affiliated with, endorsed by, or operated on behalf of the Government of India
+          </strong>{' '}
+          or any ministry. PM Surya Ghar and PM KUSUM figures here are indicative estimates built
+          from published scheme guidelines and typical market costs — actual subsidies, tariffs and
+          timelines vary by state and DISCOM. Always verify with your DISCOM, your state
+          implementing agency, or MNRE before making a purchase decision. Every estimate in the app
+          is labelled as such.
         </p>
       </section>
 
@@ -129,9 +132,9 @@ export default function AboutPage(): React.JSX.Element {
         </h2>
         <p className="mt-2">
           The phase-by-phase plan lives in <code>tasks.md</code> at the repository root. The
-          headline next steps: Firebase Authentication and Firestore for cross-device sync
-          (the storage interface is already in place), the interactive Maps commute view, and
-          shared leaderboard circles that sync instead of filtering locally.
+          headline next steps: Firebase Authentication and Firestore for cross-device sync (the
+          storage interface is already in place), the interactive Maps commute view, and shared
+          leaderboard circles that sync instead of filtering locally.
         </p>
       </section>
 

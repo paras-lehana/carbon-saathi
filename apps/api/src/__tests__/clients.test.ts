@@ -142,9 +142,7 @@ describe('maps-client resolveDistanceKm', () => {
   });
 
   it('falls back to the estimate when Maps answers a non-OK status', async () => {
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValue(jsonResponse({ status: 'REQUEST_DENIED', rows: [] }));
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ status: 'REQUEST_DENIED', rows: [] }));
 
     const result = await resolveDistanceKm({
       apiKey: 'maps-key',

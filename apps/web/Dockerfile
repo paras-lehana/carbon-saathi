@@ -12,12 +12,10 @@ COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-# npm ci resolves optional native deps from the lockfile, which was generated on
-# Windows and only records the Win32 lightningcss binary. Drop the lockfile so
-# npm install re-evaluates optional deps for the container's platform (musl).
-# All non-optional packages are pinned in package.json ranges — deterministic.
-# Ref: https://github.com/npm/cli/issues/4828
-RUN rm package-lock.json && npm install --no-audit --no-fund
+# Deterministic install straight from the lockfile. The lockfile records the
+# optional native binaries for every platform (incl. lightningcss's linux-musl
+# build this Alpine stage needs), so npm ci resolves them without drift.
+RUN npm ci --no-audit --no-fund
 
 COPY tsconfig.base.json ./
 COPY packages/core packages/core

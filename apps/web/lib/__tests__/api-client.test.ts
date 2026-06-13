@@ -1,6 +1,7 @@
 /**
  * api-client: the never-throws contract — network failures, API error
- * envelopes and malformed bodies must all normalise to { ok:false, error }.
+ * envelopes and malformed bodies (including 2xx payloads that fail their
+ * core response schema) must all normalise to { ok:false, error }.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { calculateSuryaGhar, getHealth, logAction, quizEstimate, setPledge } from '../api-client';
@@ -8,6 +9,31 @@ import { calculateSuryaGhar, getHealth, logAction, quizEstimate, setPledge } fro
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+// Schema-complete fixtures: quizEstimate responses are runtime-validated
+// against core's baseline + survey schemas, so partial stubs no longer pass.
+const VALID_BASELINE = {
+  totalKgAnnual: 1500,
+  byCategory: { homeEnergy: 600, transport: 500, food: 300, shopping: 100 },
+  vsIndiaAverage: 0.75,
+  vsUrbanAffluent: 0.38,
+  topDriver: 'homeEnergy',
+  generatedTips: ['Switch the geyser to a timer.'],
+} as const;
+
+const VALID_SURVEY = {
+  householdSize: 4,
+  monthlyElectricityKwh: 250,
+  lpgCylindersPerMonth: 1,
+  commuteMode: 'metro',
+  commuteKmOneWay: 10,
+  commuteDaysPerWeek: 5,
+  flightsShortPerYear: 0,
+  flightsLongPerYear: 0,
+  dietPattern: 'vegetarian',
+  shoppingLevel: 'medium',
+  acHoursPerDay: 4,
+} as const;
 
 describe('api-client', () => {
   it('maps a network failure to an UPSTREAM_FAILURE envelope instead of throwing', async () => {
@@ -27,7 +53,9 @@ describe('api-client', () => {
       'fetch',
       vi.fn().mockResolvedValue(
         new Response(
-          JSON.stringify({ error: { code: 'VALIDATION_FAILED', message: 'monthlyUnits too low' } }),
+          JSON.stringify({
+            error: { code: 'VALIDATION_FAILED', message: 'monthlyUnits too low' },
+          }),
           { status: 400, headers: { 'content-type': 'application/json' } },
         ),
       ),
@@ -90,10 +118,10 @@ describe('api-client', () => {
       shopping: 'minimal',
     } as const;
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({ baseline: { totalKgAnnual: 1500 }, survey: { householdSize: 4 } }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      ),
+      new Response(JSON.stringify({ baseline: VALID_BASELINE, survey: VALID_SURVEY }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
     );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -106,14 +134,46 @@ describe('api-client', () => {
     expect(JSON.parse(String(init.body))).toEqual({ answers });
   });
 
+  it('maps a 2xx payload that fails its response schema to UPSTREAM_FAILURE', async () => {
+    // Truncated baseline + survey: would previously have been blind-cast.
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ baseline: { totalKgAnnual: 1500 }, survey: { householdSize: 4 } }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+    );
+
+    const result = await quizEstimate({
+      commute: 'metro-bus',
+      ac: 'rarely',
+      diet: 'veg',
+      flights: 'none',
+      shopping: 'minimal',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('UPSTREAM_FAILURE');
+      expect(result.error.message).toBe('Malformed response from server.');
+    }
+  });
+
   it('setPledge posts userId + actionId and surfaces validation errors', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ error: { code: 'VALIDATION_FAILED', message: 'Unknown actionId.' } }), {
-          status: 400,
-          headers: { 'content-type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({ error: { code: 'VALIDATION_FAILED', message: 'Unknown actionId.' } }),
+          {
+            status: 400,
+            headers: { 'content-type': 'application/json' },
+          },
+        ),
       ),
     );
 

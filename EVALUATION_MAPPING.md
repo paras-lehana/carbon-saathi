@@ -33,7 +33,7 @@ evidence it. Every claim below is verifiable by opening the listed path.
   [`packages/core/src/quick-quiz.ts`](packages/core/src/quick-quiz.ts),
   [`packages/core/src/types.ts`](packages/core/src/types.ts).
 - File header comments (responsibility + boundary) on every source file; comments explain
-  *why* (sources, security, efficiency), never restate code → any file under
+  _why_ (sources, security, efficiency), never restate code → any file under
   [`packages/core/src/`](packages/core/src) or [`apps/api/src/`](apps/api/src).
 - Dependency injection in the API: `process.env` is read only in
   [`apps/api/src/config.ts`](apps/api/src/config.ts); routes receive config —
@@ -57,7 +57,7 @@ evidence it. Every claim below is verifiable by opening the listed path.
   consumed by [`apps/api/src/services/assistant.ts`](apps/api/src/services/assistant.ts).
 - Secret handling: env-only via [`.env.example`](.env.example) (git-ignored real files);
   in production the Gemini key mounts from **Secret Manager** by reference
-  ([`scripts/deploy.ps1`](scripts/deploy.ps1)); the evidence route serves env var *names*
+  ([`scripts/deploy.ps1`](scripts/deploy.ps1)); the evidence route serves env var _names_
   only — an integration test asserts no values leak →
   [`apps/api/src/__tests__/`](apps/api/src/__tests__) (secret-leak assertion),
   [`packages/core/src/google/service-catalog.ts`](packages/core/src/google/service-catalog.ts).
@@ -140,7 +140,7 @@ evidence it. Every claim below is verifiable by opening the listed path.
 
 - Per-service contract (status / env vars / fallback / code paths / activation steps) →
   [GOOGLE_SERVICES.md](GOOGLE_SERVICES.md).
-- Typed evidence catalog served by the API — the repo *self-reports* its integrations →
+- Typed evidence catalog served by the API — the repo _self-reports_ its integrations →
   [`packages/core/src/google/service-catalog.ts`](packages/core/src/google/service-catalog.ts),
   route `GET /api/google/services`, page
   [`apps/web/app/google-services/`](apps/web/app/google-services).

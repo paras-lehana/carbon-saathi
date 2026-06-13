@@ -6,16 +6,16 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useFadeUp } from '../../../lib/motion';
+import { useFadeUp } from '@/lib/motion';
 import type { BaselineFootprintResult, FootprintCategory } from '@carbon-saathi/core';
-import { CategoryDonut } from '../../../components/charts/CategoryDonut';
-import { ComparisonBars } from '../../../components/charts/ComparisonBars';
-import { Button } from '../../../components/ui/Button';
-import { CountUp } from '../../../components/ui/CountUp';
-import { GlassCard } from '../../../components/ui/GlassCard';
-import { StatCard } from '../../../components/ui/StatCard';
-import { TipsList } from '../../../components/ui/TipsList';
-import { formatKgCo2 } from '../../../lib/format';
+import { CategoryDonut } from '@/components/charts/CategoryDonut';
+import { ComparisonBars } from '@/components/charts/ComparisonBars';
+import { Button } from '@/components/ui/Button';
+import { CountUp } from '@/components/ui/CountUp';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { StatCard } from '@/components/ui/StatCard';
+import { TipsList } from '@/components/ui/TipsList';
+import { formatKgCo2 } from '@/lib/format';
 
 const CATEGORY_LABELS: Record<FootprintCategory, string> = {
   homeEnergy: 'Home energy',
@@ -23,6 +23,10 @@ const CATEGORY_LABELS: Record<FootprintCategory, string> = {
   food: 'Food',
   shopping: 'Shopping',
 };
+
+// The chart cards breathe with mb-4 under their headings, one step looser
+// than SectionCard's default mb-3.
+const CHART_HEADING_CLASS = 'm-0 mb-4 font-display text-lg font-bold';
 
 export interface ResultRevealProps {
   baseline: BaselineFootprintResult;
@@ -64,27 +68,26 @@ export function ResultReveal({ baseline }: ResultRevealProps): React.JSX.Element
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <GlassCard as="section" aria-labelledby="result-donut-heading">
-          <h2 id="result-donut-heading" className="m-0 mb-4 font-display text-lg font-bold">
-            Where it comes from
-          </h2>
+        <SectionCard
+          id="result-donut-heading"
+          title="Where it comes from"
+          headingClassName={CHART_HEADING_CLASS}
+        >
           <CategoryDonut byCategory={baseline.byCategory} totalKgAnnual={baseline.totalKgAnnual} />
-        </GlassCard>
-        <GlassCard as="section" aria-labelledby="result-compare-heading">
-          <h2 id="result-compare-heading" className="m-0 mb-4 font-display text-lg font-bold">
-            How you compare
-          </h2>
+        </SectionCard>
+        <SectionCard
+          id="result-compare-heading"
+          title="How you compare"
+          headingClassName={CHART_HEADING_CLASS}
+        >
           <ComparisonBars yourKg={baseline.totalKgAnnual} />
-        </GlassCard>
+        </SectionCard>
       </div>
 
       {baseline.generatedTips.length > 0 && (
-        <GlassCard as="section" aria-labelledby="result-tips-heading">
-          <h2 id="result-tips-heading" className="m-0 mb-3 font-display text-lg font-bold">
-            🍃 Your first three moves
-          </h2>
+        <SectionCard id="result-tips-heading" title="🍃 Your first three moves">
           <TipsList tips={baseline.generatedTips} />
-        </GlassCard>
+        </SectionCard>
       )}
 
       <div className="flex flex-wrap gap-3">

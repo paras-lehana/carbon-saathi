@@ -51,10 +51,16 @@ export function validateBody<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>): Re
 /**
  * Typed accessor for the value validateBody stored. The schema parameter
  * exists purely to bind T to the schema that validated the body — pass the
- * SAME schema given to validateBody. At runtime it is ignored: the body was
- * already parsed, so this still just reads res.locals.parsedBody.
+ * SAME schema given to validateBody. At runtime it is not re-parsed: the
+ * body was already validated, so this just reads res.locals.parsedBody.
  */
 export function parsedBody<T>(res: Response, _schema: z.ZodType<T, z.ZodTypeDef, unknown>): T {
+  // Guard against a route wired without validateBody: handing back undefined
+  // would let an unvalidated body slip through as a typed value, so fail loud
+  // instead — asyncHandler routes the thrown AppError to the 500 envelope.
+  if (res.locals.parsedBody === undefined) {
+    throw appError('INTERNAL', undefined, 'parsedBody called before validateBody ran');
+  }
   return res.locals.parsedBody as T;
 }
 

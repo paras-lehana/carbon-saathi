@@ -15,9 +15,9 @@ import {
   LIFE_THEMES,
   type InitiativeCategory,
 } from '@carbon-saathi/core';
-import { Button } from '../../components/ui/Button';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { formatInrCompact, formatKgCompact } from '../../lib/format';
+import { Button } from '@/components/ui/Button';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { formatInrCompact, formatKgCompact } from '@/lib/format';
 
 // The catalog is static, so per-category counts never change — build once.
 const CATEGORY_COUNTS: ReadonlyMap<InitiativeCategory, number> = new Map(
@@ -33,12 +33,26 @@ function pillClasses(active: boolean): string {
 
 export default function InitiativesPage(): React.JSX.Element {
   const [activeCategory, setActiveCategory] = useState<InitiativeCategory | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const initiatives = useMemo(
-    () =>
-      activeCategory === 'all' ? [...INITIATIVE_CATALOG] : initiativesByCategory(activeCategory),
-    [activeCategory],
-  );
+  const initiatives = useMemo(() => {
+    let list =
+      activeCategory === 'all' ? [...INITIATIVE_CATALOG] : initiativesByCategory(activeCategory);
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (i) =>
+          i.title.toLowerCase().includes(q) ||
+          i.subtitle.toLowerCase().includes(q) ||
+          i.benefit.toLowerCase().includes(q) ||
+          i.howToStart.toLowerCase().includes(q) ||
+          (i.scheme !== undefined && i.scheme.toLowerCase().includes(q)),
+      );
+    }
+
+    return list;
+  }, [activeCategory, searchQuery]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -66,31 +80,46 @@ export default function InitiativesPage(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Filter pills — aria-pressed toggles over a single grid. */}
-      <nav aria-label="Initiative categories" className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveCategory('all')}
-          className={pillClasses(activeCategory === 'all')}
-          aria-pressed={activeCategory === 'all'}
-        >
-          All ({INITIATIVE_CATALOG.length})
-        </button>
-        {ALL_INITIATIVE_CATEGORIES.map((category) => {
-          const theme = LIFE_THEMES[category];
-          return (
-            <button
-              key={category}
-              type="button"
-              onClick={() => setActiveCategory(category)}
-              className={pillClasses(activeCategory === category)}
-              aria-pressed={activeCategory === category}
-            >
-              {theme.emoji} {theme.title} ({CATEGORY_COUNTS.get(category)})
-            </button>
-          );
-        })}
-      </nav>
+      {/* Search and Filters */}
+      <div className="flex flex-col gap-4">
+        <div className="relative max-w-md">
+          <input
+            type="search"
+            placeholder="Search initiatives..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-md border border-line bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            aria-label="Search initiatives"
+          />
+        </div>
+
+        {/* Filter pills — aria-pressed toggles over a single grid. */}
+        <nav aria-label="Initiative categories" className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveCategory('all')}
+            className={pillClasses(activeCategory === 'all')}
+            aria-pressed={activeCategory === 'all'}
+          >
+            All ({INITIATIVE_CATALOG.length})
+          </button>
+          {ALL_INITIATIVE_CATEGORIES.map((category) => {
+            const theme = LIFE_THEMES[category];
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setActiveCategory(category)}
+                className={pillClasses(activeCategory === category)}
+                aria-pressed={activeCategory === category}
+              >
+                {theme.emoji} {theme.title} ({CATEGORY_COUNTS.get(category)})
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
       {/* Grid swaps are silent for screen readers without this announcement. */}
       <p aria-live="polite" className="sr-only">
         Showing {initiatives.length} initiatives

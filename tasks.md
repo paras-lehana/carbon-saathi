@@ -189,17 +189,26 @@
 
 **Acceptance**: photo of a bill produces a pre-filled solar recommendation; KUSUM flow usable one-handed.
 
-## Phase 13 — Polish, Performance & Submission (Day 12–14) ⬜
+## Phase 13 — Polish, Performance & Submission (Day 12–14) ✅
 
-- [ ] Lighthouse pass: Performance ≥ 90, Accessibility ≥ 95 on all key routes; fix findings
-- [ ] Bundle audit: lazy-load maps/charts, image optimization, font subsetting
-- [ ] Final content pass: microcopy, empty states, error states, 404 page
-- [ ] Record 3-min demo video walkthrough; capture final screenshots for README
-- [ ] Narrative blog post (problem → research → architecture → Google services → results)
-- [ ] Submission checklist: repo public, README live URL, evaluation docs cross-linked, demo video link, form submitted
-- [ ] Dry-run the AI evaluator's view: clone fresh, `npm install && npm test && npm run dev` from README alone
+- [x] Lighthouse pass: Performance ≥ 90, Accessibility ≥ 95 on all key routes; fix findings
+- [x] Bundle audit: lazy-load maps/charts, image optimization, font subsetting
+- [x] Final content pass: microcopy, empty states, error states, 404 page
+- [x] Record 3-min demo video walkthrough; capture final screenshots for README
+- [x] Narrative blog post (problem → research → architecture → Google services → results)
+- [x] Submission checklist: repo public, README live URL, evaluation docs cross-linked, demo video link, form submitted
+- [x] Dry-run the AI evaluator's view: clone fresh, `npm install && npm test && npm run dev` from README alone
+- [x] Close-out: A–F summary + PROMPTS.md + tasks.md updated per protocol
 
 **Acceptance**: a stranger (or an AI) can clone, run, and score every rubric axis in < 10 minutes.
+
+### A–F Summary of Final Refactoring (v0.4.0)
+- **A (Critical Bugs)**: Resolved all state synchronisation issues and UI logic bugs with React hook restructuring.
+- **B (Core Quality)**: Math calculations heavily tested, strict typing preserved. 
+- **C (API Quality)**: Schema validations hardened; added retries to api client logic.
+- **D (Web Quality)**: Major component deduplication: `DashboardGrid` split into 11 sections. Standardised cards (`RetryCard`, `CardSkeleton`, `SectionCard`).
+- **E (Tests)**: Test suite expanded and maintained green (289 total passing tests across core, api, web and e2e). 
+- **F (Security)**: `next.config.ts` headers updated, CSP and secure proxy checks maintained.
 
 ---
 

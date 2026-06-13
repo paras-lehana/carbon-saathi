@@ -7,14 +7,14 @@
 
 import { useState } from 'react';
 import type { CommuteCompareMode } from '@carbon-saathi/core';
-import { Button } from '../../../components/ui/Button';
-import { Field } from '../../../components/ui/Field';
-import { GlassCard } from '../../../components/ui/GlassCard';
-import { useToast } from '../../../components/ui/Toast';
-import * as api from '../../../lib/api-client';
-import type { CommuteCompareResponse } from '../../../lib/api-client';
-import { formatKgCo2, formatNumber } from '../../../lib/format';
-import { INPUT_CLASS } from '../../../components/ui/input-styles';
+import { Button } from '@/components/ui/Button';
+import { Field } from '@/components/ui/Field';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { useToast } from '@/components/ui/Toast';
+import * as api from '@/lib/api-client';
+import type { CommuteCompareResponse } from '@/lib/api-client';
+import { formatKgCo2, formatNumber } from '@/lib/format';
+import { INPUT_CLASS } from '@/components/ui/input-styles';
 
 const MODE_LABELS: Record<CommuteCompareMode, string> = {
   'car-petrol': 'Car (petrol)',

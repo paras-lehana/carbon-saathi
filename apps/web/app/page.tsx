@@ -7,23 +7,31 @@
  */
 'use client';
 
+import { EMISSION_FACTORS } from '@carbon-saathi/core';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useFadeUpInView } from '../lib/motion';
+import { formatKgCompact } from '../lib/format';
 import { Button } from '../components/ui/Button';
 import { GlassCard } from '../components/ui/GlassCard';
 import { StatCard } from '../components/ui/StatCard';
 import { QuizWidget } from '../components/gamification/QuizWidget';
 
+// Both headline stats are derived from core's benchmark factors, so the
+// landing copy can never drift from what the calculators actually use.
+const INDIA_AVERAGE_KG = EMISSION_FACTORS.indiaPerCapitaAnnual.value;
+const URBAN_AFFLUENT_KG = EMISSION_FACTORS.indiaUrbanAffluentAnnual.value;
+
 const PROBLEM_STATS = [
   {
-    value: '2.0 t',
+    value: formatKgCompact(INDIA_AVERAGE_KG),
     label: 'CO₂e the average Indian emits every year',
-    sublabel: 'Energy-related, per capita', // core EMISSION_FACTORS.indiaPerCapitaAnnual
+    sublabel: 'Energy-related, per capita',
   },
   {
-    value: '2×',
+    // Rounded multiple — the label already hedges with "roughly double".
+    value: `${Math.round(URBAN_AFFLUENT_KG / INDIA_AVERAGE_KG)}×`,
     label: 'Urban affluent households emit roughly double — about 4 t',
-    sublabel: 'And rising with incomes', // core EMISSION_FACTORS.indiaUrbanAffluentAnnual
+    sublabel: 'And rising with incomes',
   },
   {
     value: '₹78,000',

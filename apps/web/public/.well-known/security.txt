@@ -1,0 +1,6 @@
+# Security contact for Carbon Saathi (https://carbon-saathi-web-ktdjm6xcyq-el.a.run.app)
+Contact: mailto:paras.lehana@indiamart.com
+Contact: https://github.com/paras-lehana/carbon-saathi/security/advisories/new
+Expires: 2027-06-30T00:00:00.000Z
+Preferred-Languages: en
+Policy: https://github.com/paras-lehana/carbon-saathi/blob/main/SECURITY.md

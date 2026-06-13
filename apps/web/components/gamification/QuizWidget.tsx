@@ -11,9 +11,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { quizAnswersSchema, QUIZ_QUESTIONS } from '@carbon-saathi/core';
 import type { QuizAnswers, QuizQuestionId } from '@carbon-saathi/core';
-import * as api from '../../lib/api-client';
-import type { QuizEstimateResponse } from '../../lib/api-client';
-import { useProfile } from '../../lib/contexts';
+import * as api from '@/lib/api-client';
+import type { QuizEstimateResponse } from '@/lib/api-client';
+import { useProfile } from '@/lib/contexts';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/Toast';
 
@@ -30,7 +30,11 @@ function buildQuizAnswers(partial: PartialAnswers): QuizAnswers | null {
   return parsed.success ? parsed.data : null;
 }
 
-export function QuizWidget(): React.JSX.Element {
+export interface QuizWidgetProps {
+  onComplete?: () => void;
+}
+
+export function QuizWidget({ onComplete }: QuizWidgetProps = {}): React.JSX.Element {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<PartialAnswers>({});
   const [estimate, setEstimate] = useState<QuizEstimateResponse | null>(null);
@@ -121,8 +125,12 @@ export function QuizWidget(): React.JSX.Element {
       return;
     }
     applyUserState(result.data);
-    router.push('/dashboard');
-  }, [estimate, applyUserState, router, showToast]);
+    if (onComplete) {
+      onComplete();
+    } else {
+      router.push('/dashboard');
+    }
+  }, [estimate, applyUserState, router, showToast, onComplete]);
 
   if (done) {
     const tonnes = estimate !== null ? (estimate.baseline.totalKgAnnual / 1000).toFixed(1) : null;
@@ -152,7 +160,7 @@ export function QuizWidget(): React.JSX.Element {
           India average is ~2 t. Let&apos;s see how yours breaks down and what to do about it.
         </p>
         <Button size="lg" onClick={() => void goToDashboard()} disabled={loading}>
-          {loading ? 'Opening dashboard…' : 'See my full dashboard →'}
+          {loading ? 'Opening dashboard…' : onComplete ? 'Done' : 'See my full dashboard →'}
         </Button>
       </div>
     );

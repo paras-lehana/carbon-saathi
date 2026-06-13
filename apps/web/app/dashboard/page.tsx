@@ -1,17 +1,19 @@
 /**
  * Dashboard route: guards on profile state (EmptyState when there is none),
  * loads the aggregate dashboard payload plus the action catalog and the
- * leaderboard slice, and hands everything to the bento grid. Owns fetching
- * and retry; all presentation lives in components/.
+ * leaderboard slice through useApiQuery, and hands everything to the bento
+ * grid. Owns the loader (including bootstrap-and-retry); presentation lives
+ * in components/.
  */
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import type { ActionDefinition } from '@carbon-saathi/core';
-import { Button } from '../../components/ui/Button';
-import { GlassCard } from '../../components/ui/GlassCard';
-import * as api from '../../lib/api-client';
-import { useProfile } from '../../lib/contexts';
+import { CardSkeleton } from '@/components/ui/CardSkeleton';
+import { RetryCard } from '@/components/ui/RetryCard';
+import * as api from '@/lib/api-client';
+import { useProfile } from '@/lib/contexts';
+import { useApiQuery } from '@/lib/use-api-query';
 import { DashboardGrid } from './components/DashboardGrid';
 import { EmptyState } from './components/EmptyState';
 
@@ -25,55 +27,44 @@ interface DashboardData {
 
 function GridSkeleton(): React.JSX.Element {
   return (
-    <div role="status" aria-label="Loading your dashboard data">
-      <span className="sr-only">Loading your dashboard data…</span>
-      <div aria-hidden="true" className="bento-grid">
-        {Array.from({ length: 6 }, (_, index) => (
-          <div key={index} className="glass-card h-44 animate-pulse" />
-        ))}
-      </div>
-    </div>
+    <CardSkeleton count={6} label="Loading your dashboard data" containerClassName="bento-grid" />
   );
 }
 
 export default function DashboardPage(): React.JSX.Element {
   const { ready, userId, displayName, baseline: profileBaseline, bootstrap } = useProfile();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(
-    async (uid: string): Promise<void> => {
-      setError(null);
-      let dashboard = await api.getDashboard(uid);
-      if (!dashboard.ok && dashboard.error.code === 'NOT_FOUND') {
-        // An API restart wiped the in-memory store — re-seed it from the
-        // localStorage mirrors and retry once (contexts.tsx contract).
-        await bootstrap();
-        dashboard = await api.getDashboard(uid);
-      }
-      if (!dashboard.ok) {
-        setError(dashboard.error.message);
-        return;
-      }
-      // Catalog and leaderboard are enrichments: if either fails, the grid
-      // degrades (no quick-log labels / mini board) instead of sinking.
-      const [catalog, leaderboard] = await Promise.all([
-        api.getActionCatalog(),
-        api.getLeaderboard(uid),
-      ]);
-      setData({
+  const load = useCallback(async (): Promise<api.ApiResult<DashboardData>> => {
+    if (userId === null) {
+      // Unreachable: the query below is gated on userId. Returning an error
+      // (never thrown) keeps the loader inside the ApiResult contract.
+      return { ok: false, error: { code: 'NOT_FOUND', message: 'No profile yet.' } };
+    }
+    let dashboard = await api.getDashboard(userId);
+    if (!dashboard.ok && dashboard.error.code === 'NOT_FOUND') {
+      // An API restart wiped the in-memory store — re-seed it from the
+      // localStorage mirrors and retry once (contexts.tsx contract).
+      await bootstrap();
+      dashboard = await api.getDashboard(userId);
+    }
+    if (!dashboard.ok) return dashboard;
+    // Catalog and leaderboard are enrichments: if either fails, the grid
+    // degrades (no quick-log labels / mini board) instead of sinking.
+    const [catalog, leaderboard] = await Promise.all([
+      api.getActionCatalog(),
+      api.getLeaderboard(userId),
+    ]);
+    return {
+      ok: true,
+      data: {
         dashboard: dashboard.data,
         actions: catalog.ok ? [...catalog.data.actions] : [],
         leaderboard: leaderboard.ok ? leaderboard.data : null,
-      });
-    },
-    [bootstrap],
-  );
+      },
+    };
+  }, [userId, bootstrap]);
 
-  useEffect(() => {
-    if (!ready || userId === null) return;
-    void load(userId);
-  }, [ready, userId, load]);
+  const { data, error, retry } = useApiQuery(load, { enabled: ready && userId !== null });
 
   if (!ready) {
     return <GridSkeleton />;
@@ -91,9 +82,7 @@ export default function DashboardPage(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="m-0 font-display text-[length:var(--text-2xl)] font-bold">
-          Your dashboard
-        </h1>
+        <h1 className="m-0 font-display text-[length:var(--text-2xl)] font-bold">Your dashboard</h1>
         <p className="mt-2 text-ink-muted">
           {displayName !== null ? `Namaste, ${displayName} — ` : 'Namaste — '}
           every kilogram you save counts here.
@@ -101,19 +90,13 @@ export default function DashboardPage(): React.JSX.Element {
       </div>
 
       {error !== null ? (
-        <GlassCard
-          as="section"
-          className="mx-auto max-w-xl py-10 text-center"
-          aria-labelledby="dashboard-error-heading"
-        >
-          <h2 id="dashboard-error-heading" className="m-0 font-display text-lg font-bold">
-            We could not load your dashboard
-          </h2>
-          <p className="mx-auto mt-2 max-w-md text-ink-muted">{error}</p>
-          <Button className="mt-4" onClick={() => void load(userId)}>
-            Try again
-          </Button>
-        </GlassCard>
+        <RetryCard
+          id="dashboard-error-heading"
+          title="We could not load your dashboard"
+          message={error}
+          onRetry={retry}
+          className="mx-auto max-w-xl"
+        />
       ) : data === null ? (
         <GridSkeleton />
       ) : (
@@ -123,7 +106,7 @@ export default function DashboardPage(): React.JSX.Element {
           baseline={baseline ?? null}
           actions={data.actions}
           leaderboard={data.leaderboard}
-          onRefresh={() => load(userId)}
+          onRefresh={retry}
         />
       )}
     </div>

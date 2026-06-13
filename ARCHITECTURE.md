@@ -153,21 +153,41 @@ core/commute.ts estimateCommuteModes(distanceKm)
 The store interface is deliberately paginated-shaped (list operations take limit/cursor
 parameters) so the in-memory and Firestore implementations share call sites.
 
+## Why the web app is client-first (a decision, not a default)
+
+Most pages opt into `'use client'` and fetch from the browser instead of using React
+Server Components. That is deliberate for this product:
+
+- **Local-first, no sign-up.** Identity is an anonymous `userId` in localStorage; there
+  is no session cookie for a server component to read, so server-rendering personal data
+  would require inventing auth this product intentionally doesn't have.
+- **Instant repeat paint.** The dashboard hydrates from the localStorage mirror while
+  the API confirms in the background — faster on a repeat visit than a server fetch,
+  and it keeps working when the in-memory API restarts (auto re-bootstrap on 404).
+- **One data path.** Every read goes through the same typed `api-client` + `/api/*`
+  same-origin proxy that mutations use — one error envelope, one retry policy, one
+  place to validate responses — rather than splitting logic between RSC loaders and
+  client mutations.
+- **The trade-off we accept:** first paint shows skeletons instead of streamed content.
+  For a 5-tap quiz app whose pages are interactive forms (not content), that costs less
+  than maintaining two data layers. Static, non-personal pages (e.g. `/about`) stay
+  server components.
+
 ## Efficiency decisions
 
-| Decision | Where | Why |
-|---|---|---|
-| Zero-runtime-dep core (zod only) | `packages/core/package.json` | Small install, fast cold start on Cloud Run, no transitive CVE surface |
-| In-memory store + seeded leaderboard | `store.ts`, `data/leaderboard-seed.ts` | No DB round trips in the demo path; interface keeps the upgrade path open |
-| Deterministic fallbacks instead of retries | `gemini-client.ts`, `maps-client.ts` | A missing key costs zero network time; no retry storms against quota'd APIs |
-| Token budget on the assistant (≤180 words, 1000-char input cap) | `assistant.ts`, schema | Bounds Gemini cost and latency per request; stricter 10/min rate bucket |
-| 32 kb JSON body cap | `server.ts` | Rejects oversized payloads before parsing cost |
-| Structured logs without payload echo | `middleware/logger.ts` | Constant log cost per request; Cloud Logging-native JSON |
-| `transpilePackages: ['@carbon-saathi/core']` + single core build | `next.config.ts`, root scripts | Core compiles once; web/api consume the same artifact |
-| Lazy-loaded charts/heavy components, `next/font` self-hosting | `apps/web` | Smaller first paint; no third-party font request |
-| localStorage mirror with SSR guards | `lib/storage.ts` | Instant dashboard paint from cache while the API confirms |
-| Cloud Run scale-to-zero (min-instances 0) | `cloudbuild-*.yaml` | ≈₹0 idle spend; cold starts stay fast because the zero-dep core keeps the bundle small |
-| asia-south1 (Mumbai) region | `cloudbuild-*.yaml`, `deploy.ps1` | Lowest latency for the Indian users this product serves |
+| Decision                                                         | Where                                  | Why                                                                                    |
+| ---------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------- |
+| Zero-runtime-dep core (zod only)                                 | `packages/core/package.json`           | Small install, fast cold start on Cloud Run, no transitive CVE surface                 |
+| In-memory store + seeded leaderboard                             | `store.ts`, `data/leaderboard-seed.ts` | No DB round trips in the demo path; interface keeps the upgrade path open              |
+| Deterministic fallbacks instead of retries                       | `gemini-client.ts`, `maps-client.ts`   | A missing key costs zero network time; no retry storms against quota'd APIs            |
+| Token budget on the assistant (≤180 words, 1000-char input cap)  | `assistant.ts`, schema                 | Bounds Gemini cost and latency per request; stricter 10/min rate bucket                |
+| 32 kb JSON body cap                                              | `server.ts`                            | Rejects oversized payloads before parsing cost                                         |
+| Structured logs without payload echo                             | `middleware/logger.ts`                 | Constant log cost per request; Cloud Logging-native JSON                               |
+| `transpilePackages: ['@carbon-saathi/core']` + single core build | `next.config.ts`, root scripts         | Core compiles once; web/api consume the same artifact                                  |
+| Lazy-loaded charts/heavy components, `next/font` self-hosting    | `apps/web`                             | Smaller first paint; no third-party font request                                       |
+| localStorage mirror with SSR guards                              | `lib/storage.ts`                       | Instant dashboard paint from cache while the API confirms                              |
+| Cloud Run scale-to-zero (min-instances 0)                        | `cloudbuild-*.yaml`                    | ≈₹0 idle spend; cold starts stay fast because the zero-dep core keeps the bundle small |
+| asia-south1 (Mumbai) region                                      | `cloudbuild-*.yaml`, `deploy.ps1`      | Lowest latency for the Indian users this product serves                                |
 
 ## Error handling contract
 

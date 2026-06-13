@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { Tabs } from '../../components/ui/Tabs';
+import { Tabs } from '@/components/ui/Tabs';
 import { KusumPanel } from './components/KusumPanel';
 import { SuryaGharPanel } from './components/SuryaGharPanel';
 
@@ -17,8 +17,8 @@ export default function SchemesPage(): React.JSX.Element {
           Government schemes, decoded
         </h1>
         <p className="mt-2 max-w-2xl text-ink-muted">
-          Real subsidy money is on the table — up to ₹78,000 for rooftop solar and around 60%
-          of a solar pump. Run your own numbers in seconds.
+          Real subsidy money is on the table — up to ₹78,000 for rooftop solar and around 60% of a
+          solar pump. Run your own numbers in seconds.
         </p>
       </div>
 

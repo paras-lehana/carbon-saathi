@@ -42,7 +42,7 @@ function buildSubsidyBreakdown(estCostInr: number): KusumSubsidyBreakdown {
   };
 }
 
-export function adviseKusum(input: KusumInput): Result<KusumResult, AppError> {
+function validateKusumInput(input: KusumInput): Result<void, AppError> {
   if (!Number.isFinite(input.pumpHp) || input.pumpHp < 1 || input.pumpHp > 10) {
     return err(appError('VALIDATION_FAILED', 'pumpHp must be between 1 and 10'));
   }
@@ -52,6 +52,28 @@ export function adviseKusum(input: KusumInput): Result<KusumResult, AppError> {
   ) {
     return err(appError('VALIDATION_FAILED', 'landAcres must be a positive number'));
   }
+  return ok(undefined);
+}
+
+function getComponentASuggestion(input: KusumInput): KusumComponentASuggestion | undefined {
+  if (
+    input.hasBarrenLand &&
+    input.landAcres !== undefined &&
+    input.landAcres >= MIN_COMPONENT_A_ACRES
+  ) {
+    return {
+      component: 'A',
+      landAcres: input.landAcres,
+      estLeaseIncomeInrPerYear: Math.round(input.landAcres * LAND_LEASE_INR_PER_ACRE_YEAR),
+      note: 'Component A: lease barren land for a 0.5–2 MW solar plant — documented benchmark is about ₹25,000 per acre per year in lease income.',
+    };
+  }
+  return undefined;
+}
+
+export function adviseKusum(input: KusumInput): Result<KusumResult, AppError> {
+  const validation = validateKusumInput(input);
+  if (!validation.ok) return err(validation.error);
 
   // Routing: no grid connection (diesel or no pump) → standalone solar pump
   // (Component B); a grid-connected pump is solarised instead (Component C).
@@ -75,19 +97,7 @@ export function adviseKusum(input: KusumInput): Result<KusumResult, AppError> {
         )
       : Math.round(dieselSavedLitresPerYear * DIESEL_KG_CO2_PER_LITRE);
 
-  let componentASuggestion: KusumComponentASuggestion | undefined;
-  if (
-    input.hasBarrenLand &&
-    input.landAcres !== undefined &&
-    input.landAcres >= MIN_COMPONENT_A_ACRES
-  ) {
-    componentASuggestion = {
-      component: 'A',
-      landAcres: input.landAcres,
-      estLeaseIncomeInrPerYear: Math.round(input.landAcres * LAND_LEASE_INR_PER_ACRE_YEAR),
-      note: 'Component A: lease barren land for a 0.5–2 MW solar plant — documented benchmark is about ₹25,000 per acre per year in lease income.',
-    };
-  }
+  const componentASuggestion = getComponentASuggestion(input);
 
   return ok({
     component,

@@ -28,7 +28,10 @@ export function Footer(): React.JSX.Element {
             </p>
           </div>
           <nav aria-label="Footer">
-            <ul role="list" className="m-0 grid list-none grid-cols-2 gap-x-8 gap-y-2 p-0 sm:grid-cols-4">
+            <ul
+              role="list"
+              className="m-0 grid list-none grid-cols-2 gap-x-8 gap-y-2 p-0 sm:grid-cols-4"
+            >
               {FOOTER_LINKS.map((link) => (
                 <li key={link.href}>
                   <Link

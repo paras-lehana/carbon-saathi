@@ -1,91 +1,52 @@
 /**
  * PM Surya Ghar tab: the rooftop-solar form (units, roof area, tariff) and
  * the result panel — sizing, subsidy split, payback, CO₂ and the application
- * checklist. Owns form state/validation; all math comes from the API.
+ * checklist. Owns form state; validation comes from core's shared zod schema
+ * and all math from the API.
  */
 'use client';
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useFadeUp } from '../../../lib/motion';
-import { SURYA_GHAR_BOUNDS } from '@carbon-saathi/core';
+import { useFadeUp } from '@/lib/motion';
+import { SURYA_GHAR_BOUNDS, suryaGharInputSchema } from '@carbon-saathi/core';
 import type { SuryaGharInput, SuryaGharResult } from '@carbon-saathi/core';
-import { Button } from '../../../components/ui/Button';
-import { CountUp } from '../../../components/ui/CountUp';
-import { Field } from '../../../components/ui/Field';
-import { GlassCard } from '../../../components/ui/GlassCard';
-import { StatCard } from '../../../components/ui/StatCard';
-import { useToast } from '../../../components/ui/Toast';
-import * as api from '../../../lib/api-client';
-import { formatInr, formatKgCo2, formatNumber } from '../../../lib/format';
+import { Button } from '@/components/ui/Button';
+import { CountUp } from '@/components/ui/CountUp';
+import { Field } from '@/components/ui/Field';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { SchemeChecklistCard } from '@/components/ui/SchemeChecklistCard';
+import { SchemePortalLink } from '@/components/ui/SchemePortalLink';
+import { StatCard } from '@/components/ui/StatCard';
+import * as api from '@/lib/api-client';
+import { fieldErrorsFromZod } from '@/lib/form-validation';
+import { formatInr, formatKgCo2, formatNumber } from '@/lib/format';
+import { useApiSubmit } from '@/lib/use-api-submit';
 import { BreakdownBar } from './BreakdownBar';
-import { INPUT_CLASS } from '../../../components/ui/input-styles';
-
-interface FormErrors {
-  monthlyUnits?: string;
-  roofAreaSqFt?: string;
-  tariffPerUnit?: string;
-}
-
-/** Bounds come from core's SURYA_GHAR_BOUNDS, so the API never rejects what we pass. */
-function validate(monthlyUnits: string, roofArea: string, tariff: string): FormErrors {
-  const errors: FormErrors = {};
-  const units = Number(monthlyUnits);
-  if (
-    monthlyUnits.trim() === '' ||
-    !Number.isFinite(units) ||
-    units < SURYA_GHAR_BOUNDS.monthlyUnits.min ||
-    units > SURYA_GHAR_BOUNDS.monthlyUnits.max
-  ) {
-    errors.monthlyUnits = `Enter your monthly units, between ${SURYA_GHAR_BOUNDS.monthlyUnits.min} and ${formatNumber(SURYA_GHAR_BOUNDS.monthlyUnits.max)}.`;
-  }
-  if (roofArea.trim() !== '') {
-    const area = Number(roofArea);
-    if (
-      !Number.isFinite(area) ||
-      area < SURYA_GHAR_BOUNDS.roofAreaSqFt.min ||
-      area > SURYA_GHAR_BOUNDS.roofAreaSqFt.max
-    ) {
-      errors.roofAreaSqFt = `Roof area must be between ${SURYA_GHAR_BOUNDS.roofAreaSqFt.min} and ${formatNumber(SURYA_GHAR_BOUNDS.roofAreaSqFt.max)} sq ft (or leave it blank).`;
-    }
-  }
-  if (tariff.trim() !== '') {
-    const rate = Number(tariff);
-    if (!Number.isFinite(rate) || rate <= 0 || rate > SURYA_GHAR_BOUNDS.tariffPerUnit.max) {
-      errors.tariffPerUnit = `Tariff must be between ₹0 and ₹${SURYA_GHAR_BOUNDS.tariffPerUnit.max} per unit (or leave it blank).`;
-    }
-  }
-  return errors;
-}
+import { INPUT_CLASS } from '@/components/ui/input-styles';
 
 export function SuryaGharPanel(): React.JSX.Element {
-  const { showToast } = useToast();
   const [monthlyUnits, setMonthlyUnits] = useState('300');
   const [roofAreaSqFt, setRoofAreaSqFt] = useState('');
   const [tariffPerUnit, setTariffPerUnit] = useState('7');
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [pending, setPending] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<SuryaGharResult | null>(null);
+  const { pending, submit } = useApiSubmit(api.calculateSuryaGhar);
 
   const fadeUp = useFadeUp();
 
-  const submit = async (): Promise<void> => {
-    const nextErrors = validate(monthlyUnits, roofAreaSqFt, tariffPerUnit);
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
+  const handleSubmit = async (): Promise<void> => {
     const input: SuryaGharInput = {
       monthlyUnits: Number(monthlyUnits),
       ...(roofAreaSqFt.trim() !== '' ? { roofAreaSqFt: Number(roofAreaSqFt) } : {}),
       ...(tariffPerUnit.trim() !== '' ? { tariffPerUnit: Number(tariffPerUnit) } : {}),
     };
-    setPending(true);
-    const response = await api.calculateSuryaGhar(input);
-    setPending(false);
-    if (!response.ok) {
-      showToast(response.error.message, 'error');
-      return;
-    }
-    setResult(response.data.result);
+    // Same schema the API runs, so an input accepted here cannot be rejected there.
+    const nextErrors = fieldErrorsFromZod(suryaGharInputSchema, input);
+    setErrors(nextErrors ?? {});
+    if (nextErrors !== null) return;
+    const response = await submit(input);
+    if (response.ok) setResult(response.data.result);
   };
 
   return (
@@ -102,7 +63,7 @@ export function SuryaGharPanel(): React.JSX.Element {
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            void submit();
+            void handleSubmit();
           }}
           className="grid gap-4 md:grid-cols-3"
         >
@@ -211,34 +172,13 @@ export function SuryaGharPanel(): React.JSX.Element {
             <p className="m-0 mt-1 text-sm text-ink-muted">{result.freeUnitsNote}</p>
           </GlassCard>
 
-          <GlassCard as="div" className="mt-4">
-            <h3 className="m-0 mb-3 font-display text-base font-bold">How to apply — 6 steps</h3>
-            <ol className="m-0 flex list-none flex-col gap-2 p-0">
-              {result.checklist.map((step, index) => (
-                <li key={step} className="flex items-start gap-3 text-sm">
-                  <span
-                    aria-hidden="true"
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary"
-                  >
-                    {index + 1}
-                  </span>
-                  {step}
-                </li>
-              ))}
-            </ol>
-            <p className="m-0 mt-4 text-sm">
-              Apply on the official portal:{' '}
-              <a
-                href={result.portalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-primary underline"
-              >
-                pmsuryaghar.gov.in
-                <span className="sr-only"> (opens in a new tab)</span>
-              </a>
-            </p>
-          </GlassCard>
+          <SchemeChecklistCard title="How to apply — 6 steps" steps={result.checklist}>
+            <SchemePortalLink
+              prefix="Apply on the official portal:"
+              href={result.portalUrl}
+              label="pmsuryaghar.gov.in"
+            />
+          </SchemeChecklistCard>
         </motion.section>
       )}
 

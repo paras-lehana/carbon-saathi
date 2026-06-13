@@ -1,19 +1,21 @@
 /**
  * Onboarding wizard: five steps (home energy → commute → food → lifestyle →
  * review) with per-step validation, then baseline calculation + user
- * bootstrap and an animated result reveal. Owns wizard state; field markup
- * lives in components/StepFields, the form model in components/survey-form.
+ * bootstrap and an animated result reveal. Owns form state; step navigation
+ * comes from useWizard, field markup lives in components/StepFields, the
+ * form model in components/survey-form.
  */
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import type { BaselineFootprintResult } from '@carbon-saathi/core';
-import { Button } from '../../components/ui/Button';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { Stepper } from '../../components/ui/Stepper';
-import { useToast } from '../../components/ui/Toast';
-import * as api from '../../lib/api-client';
-import { useProfile } from '../../lib/contexts';
+import { Button } from '@/components/ui/Button';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { Stepper } from '@/components/ui/Stepper';
+import { useToast } from '@/components/ui/Toast';
+import * as api from '@/lib/api-client';
+import { useProfile } from '@/lib/contexts';
+import { useWizard } from '@/lib/use-wizard';
 import { ResultReveal } from './components/ResultReveal';
 import { ReviewSummary } from './components/ReviewSummary';
 import {
@@ -32,17 +34,14 @@ import {
   type SurveyFormState,
 } from './components/survey-form';
 
-const REVIEW_STEP = SURVEY_STEPS.length - 1;
-
 export default function OnboardingPage(): React.JSX.Element {
   const profile = useProfile();
   const { showToast } = useToast();
-  const [step, setStep] = useState(0);
+  const { step, goToStep, isFirst, isLast, headingRef } = useWizard(SURVEY_STEPS.length);
   const [form, setForm] = useState<SurveyFormState>(DEFAULT_SURVEY_FORM);
   const [errors, setErrors] = useState<SurveyErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BaselineFootprintResult | null>(null);
-  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const updateField = <K extends keyof SurveyFormState>(
     field: K,
@@ -57,12 +56,6 @@ export default function OnboardingPage(): React.JSX.Element {
       delete next[field];
       return next;
     });
-  };
-
-  const goToStep = (next: number): void => {
-    setStep(next);
-    // Move focus to the new step heading so keyboard/SR users land in context.
-    requestAnimationFrame(() => stepHeadingRef.current?.focus());
   };
 
   const applyErrors = (stepErrors: SurveyErrors): void => {
@@ -121,7 +114,8 @@ export default function OnboardingPage(): React.JSX.Element {
     return <ResultReveal baseline={result} />;
   }
 
-  const isReview = step === REVIEW_STEP;
+  // The wizard's final step is the read-back review before submission.
+  const isReview = isLast;
   const stepFieldProps = { form, errors, onChange: updateField };
 
   return (
@@ -148,7 +142,7 @@ export default function OnboardingPage(): React.JSX.Element {
         <GlassCard as="section" aria-labelledby="onboarding-step-heading">
           <h2
             id="onboarding-step-heading"
-            ref={stepHeadingRef}
+            ref={headingRef}
             tabIndex={-1}
             className="m-0 mb-4 font-display text-lg font-bold"
           >
@@ -165,8 +159,8 @@ export default function OnboardingPage(): React.JSX.Element {
             <Button
               variant="ghost"
               type="button"
-              disabled={step === 0 || submitting}
-              onClick={() => goToStep(Math.max(0, step - 1))}
+              disabled={isFirst || submitting}
+              onClick={() => goToStep(step - 1)}
             >
               Back
             </Button>

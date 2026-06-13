@@ -404,6 +404,29 @@ ACCEPTANCE
 > Note: Phase 2's prompt above pinned `gemini-2.0-flash`, which was current at writing —
 > Phase 6 bumped the default to `gemini-2.5-flash` (quota reality on new keys).
 
+## Phase 13 — Polish, Performance & Refactoring (Round B)
+
+```text
+Final refactoring round for v0.4.0 to achieve 100% Code Quality and Web Quality.
+
+CONTEXT
+- The app is functionally complete. The goal is to deduplicate code and simplify React components.
+
+TASKS
+1. Extract sections from DashboardGrid (335 lines) into 11 modular section components (e.g., FootprintCard, StatsCard, PointsCard, StreakCard) using a shared SectionCard.
+2. Extract ActionLogList into a shared component used by both the dashboard and the actions page.
+3. Migrate API calls in dashboard and actions pages to use `useApiQuery`.
+4. Create reusable UI primitives: RetryCard and CardSkeleton for consistent loading/error states.
+5. Untrack and ignore internal agent notes (.github/agents.md).
+
+CONSTRAINTS
+- Maintain byte-identical DOM headings and testids for e2e tests.
+- House rules apply: no any/non-null assertions, strict formatting, house-style file headers.
+
+ACCEPTANCE
+- `npm run type-check`, `npm test`, and `npm run e2e` pass with the refactored DOM.
+```
+
 ---
 
 ## Why staged prompts (and not one mega-prompt)
