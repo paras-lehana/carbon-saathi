@@ -13,6 +13,11 @@ export interface AppConfig {
   readonly demoMode: boolean;
   readonly geminiApiKey: string | undefined;
   readonly geminiModel: string;
+  /** Internal llm-service proxy — second LLM transport (failover for the direct key). */
+  readonly llmServiceUrl: string | undefined;
+  readonly llmEndpoint: string;
+  readonly llmInternalKey: string | undefined;
+  readonly llmModel: string;
   readonly mapsApiKey: string | undefined;
   readonly allowedOrigins: readonly string[];
   readonly rateLimitWindowMs: number;
@@ -54,21 +59,29 @@ function nonEmpty(raw: string | undefined): string | undefined {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const geminiApiKey = nonEmpty(env.GEMINI_API_KEY);
+  const llmInternalKey = nonEmpty(env.LLM_INTERNAL_KEY);
   return {
     port: parsePositiveInt(env.PORT, DEFAULT_PORT),
     nodeEnv: env.NODE_ENV ?? 'development',
     version: APP_VERSION,
-    // A key flips the assistant live automatically; DEMO_MODE remains an
-    // explicit override in either direction. Keyless runs always demo cleanly.
+    // ANY configured transport flips the assistant live automatically;
+    // DEMO_MODE remains an explicit override in either direction. Runs with
+    // no key at all always demo cleanly.
     demoMode:
       env.DEMO_MODE === 'true'
         ? true
         : env.DEMO_MODE === 'false'
           ? false
-          : geminiApiKey === undefined,
+          : geminiApiKey === undefined && llmInternalKey === undefined,
     geminiApiKey,
     // 2.5-flash: current stable with free-tier quota (2.0-flash returns 429 on new keys).
     geminiModel: nonEmpty(env.GEMINI_MODEL) ?? 'gemini-2.5-flash',
+    llmServiceUrl: nonEmpty(env.LLM_SERVICE_URL),
+    llmEndpoint: nonEmpty(env.LLM_ENDPOINT) ?? 'antigravity-manager',
+    llmInternalKey,
+    // gemini-3-flash: what the proxy serves today; env-tunable independently
+    // of the direct-key model because the two transports upgrade separately.
+    llmModel: nonEmpty(env.LLM_MODEL) ?? 'gemini-3-flash',
     mapsApiKey: nonEmpty(env.GOOGLE_MAPS_API_KEY),
     allowedOrigins: (env.ALLOWED_ORIGINS ?? 'http://localhost:3000')
       .split(',')

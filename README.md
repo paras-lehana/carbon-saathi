@@ -1,6 +1,6 @@
 # Carbon Saathi
 
-> **Version 0.4.0** — live on Cloud Run with 30-second gamified onboarding, a 289-test unit/integration suite and a 40+-spec e2e/a11y gate.
+> **Version 0.4.3** — live on Cloud Run with 30-second gamified onboarding, a 301-test unit/integration suite and a 40+-spec e2e/a11y gate.
 
 **Your climate saathi for everyday India.** Measure, understand, and reduce your carbon
 footprint through simple actions and personalised insights — grounded in real Indian schemes
@@ -24,8 +24,8 @@ Built with **Google Antigravity + Gemini**.
 **30-second verification for evaluators**
 
 1. `curl https://carbon-saathi-api-ktdjm6xcyq-el.a.run.app/api/health` → expect
-   `{"status":"ok","version":"0.4.0","demoMode":false}` (plus a live `uptimeSec`) — live
-   Gemini, key via Secret Manager.
+   `{"status":"ok","version":"0.4.3","demoMode":false}` (plus a live `uptimeSec`) — live
+   Gemini with a two-transport failover chain, keys via Secret Manager.
 2. Open the live demo and take the 30-second quiz on the landing page — you'll own a dashboard with a badge in under a minute.
 3. Visit `/google-services` for the self-reporting integration catalog (served by the API, rendered on Cloud Run).
 4. Clone and run with **zero keys**: `npm install && npm test && npm run dev` — every feature degrades to a deterministic demo mode.

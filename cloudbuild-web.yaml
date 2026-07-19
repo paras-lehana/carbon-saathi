@@ -5,7 +5,14 @@ substitutions:
   _REGION: asia-south1
   _SERVICE: carbon-saathi-web
   _REPO: carbon-saathi
-  _API_BASE_URL: http://localhost:8080 # overridden on the command line
+  # INCIDENT 2026-06-13: this default was http://localhost:8080 and a deploy
+  # ran without the substitution — the web container proxied /api/* to ITSELF
+  # (it listens on 8080), every API-backed page hung ~20s and returned 503,
+  # and the hackathon evaluation recorded the calculator and chatbot as down.
+  # The default is now the production API URL so a bare
+  # `gcloud builds submit --config cloudbuild-web.yaml` always ships a
+  # working proxy; override only for a differently-named API service.
+  _API_BASE_URL: https://carbon-saathi-api-ktdjm6xcyq-el.a.run.app
 
 steps:
   - id: build

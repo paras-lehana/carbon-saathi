@@ -26,6 +26,8 @@ import { createQuizRouter } from './routes/quiz';
 import { createSchemesRouter } from './routes/schemes';
 import { createUsersRouter } from './routes/users';
 import { createGeminiClient } from './services/gemini-client';
+import { createLlmChain } from './services/llm-chain';
+import { createLlmProxyClient } from './services/llm-proxy-client';
 import { InMemoryUserStore, type UserStore } from './services/store';
 
 /** Test seams: every nondeterministic or external dependency is injectable. */
@@ -49,11 +51,24 @@ function statusOf(error: unknown): number | undefined {
 export function buildApp(config: AppConfig, deps: AppDeps = {}): Express {
   const now = deps.now ?? Date.now;
   const store = deps.store ?? new InMemoryUserStore();
-  const gemini = createGeminiClient({
-    apiKey: config.geminiApiKey,
-    model: config.geminiModel,
-    fetchFn: deps.fetchFn,
-  });
+  // Reliability: two independent LLM transports behind one interface. The
+  // direct Gemini key is tried first; the internal llm-service proxy takes
+  // over when the key is missing or its quota/billing fails, and assistant.ts
+  // keeps the final grounded-demo fallback. See llm-chain.ts for the why.
+  const gemini = createLlmChain([
+    createGeminiClient({
+      apiKey: config.geminiApiKey,
+      model: config.geminiModel,
+      fetchFn: deps.fetchFn,
+    }),
+    createLlmProxyClient({
+      baseUrl: config.llmServiceUrl,
+      endpoint: config.llmEndpoint,
+      internalKey: config.llmInternalKey,
+      model: config.llmModel,
+      fetchFn: deps.fetchFn,
+    }),
+  ]);
 
   const app = express();
 

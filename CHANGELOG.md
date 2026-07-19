@@ -4,6 +4,45 @@ All notable changes to Carbon Saathi are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [SemVer](https://semver.org/). Phase numbers refer to [tasks.md](tasks.md).
 
+## [0.4.3] — 2026-07-20
+
+Production-outage postmortem release. The 2026-06-13 web deploy ran without the
+`_API_BASE_URL` substitution, baking `http://localhost:8080` into the Next
+rewrite proxy — the web container proxied `/api/*` to itself, so every
+API-backed browser flow (survey calculator, Saathi Chat, action logging,
+leaderboard) hung ~20 s and returned 503 while the API itself stayed healthy.
+Separately, the Gemini API key exhausted its prepaid credits (HTTP 429), so
+even direct API chat silently degraded to demo replies.
+
+### Fixed
+
+- `cloudbuild-web.yaml`: `_API_BASE_URL` now defaults to the production API URL —
+  a bare `gcloud builds submit` can no longer ship a self-looping proxy.
+- `gemini-api-key` secret re-written byte-exact (version 4): the previous value
+  carried a trailing `\r` from a PowerShell pipe (`loadConfig` already trims,
+  fixed for hygiene and non-trimming consumers).
+
+### Added
+
+- `apps/api/src/services/llm-proxy-client.ts`: second LLM transport via the
+  internal llm-service proxy (OpenAI-style `/smk/<endpoint>`, key in
+  `x-internal-key` header, SSRF host allowlist, sanitized errors, fence stripping).
+- `apps/api/src/services/llm-chain.ts`: failover composition — direct Gemini →
+  llm-service proxy → grounded demo reply. A single billing/quota failure can
+  no longer silently take Saathi Chat below live-LLM quality.
+- `loadConfig`: `LLM_SERVICE_URL`, `LLM_ENDPOINT`, `LLM_INTERNAL_KEY`,
+  `LLM_MODEL` (default `gemini-3-flash`); demo mode now auto-disables when ANY
+  transport is configured.
+- 12 new tests (`llm-proxy.test.ts`): transport contracts, SSRF guard,
+  key-never-in-URL/errors, failover ordering, disabled-transport skip — suite
+  now 301 tests.
+
+### Changed
+
+- Cloud Run: both services now run `--min-instances=1` so first-hit latency
+  during evaluation is never a cold start; API service carries the new LLM
+  proxy env + secret.
+
 ## [0.4.2] — 2026-06-14
 
 Extended runtime validation to 14 of 15 API endpoints in the web client
